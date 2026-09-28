@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Dandi Biyo</title>
+  <meta name="description" content="Pop the biyo, whack it with the dandi, and measure how far it flew.">
+  <meta name="theme-color" content="#ffd21a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@600;800&family=Mukta:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* Same signboard system as the other games; the scene is a village field. */
+    :root {
+      --ink: #10212b;
+      --muted: #3f5a67;
+      --sign: #ffd21a;
+      --sign-red: #d4001a;
+      --sign-black: #141414;
+      --paper: #fffdf6;
+      --sky: #a9d6ea;
+    }
+    * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--sky);
+      color: var(--ink);
+      font-family: "Mukta", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    .shop { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* --- signboard ----------------------------------------------------- */
+    .sign {
+      background: var(--sign);
+      border-bottom: 6px solid var(--sign-red);
+      box-shadow: 0 4px 0 rgba(0, 0, 0, .12);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+      position: relative; z-index: 2;
+    }
+    .sign .back { color: var(--sign-black); font-weight: 800; text-decoration: none; font-size: .95rem; }
+    .sign .board { text-align: center; line-height: 1.2; }
+    .sign .np {
+      display: block;
+      font-family: "Yatra One", "Mukta", sans-serif;
+      color: var(--sign-red);
+      font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, .15);
+    }
+    .sign .en {
+      display: block;
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      color: var(--sign-black);
+      font-size: clamp(.62rem, 2.3vw, .9rem);
+      letter-spacing: .12em; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .sign .tools { justify-self: end; display: flex; gap: 8px; }
+    .sign .round {
+      background: var(--sign-black); color: var(--sign);
+      border: 0; border-radius: 999px;
+      width: 36px; height: 36px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* --- stage --------------------------------------------------------- */
+    .stage { position: relative; flex: 1; min-height: 0; cursor: pointer; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+    .hud {
+      position: absolute; left: 0; right: 0; top: 10px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+      padding: 0 16px; pointer-events: none;
+    }
+    .chip {
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      background: var(--sign-black); color: var(--sign);
+      padding: 2px 12px; border-radius: 8px; font-size: 1rem; white-space: nowrap;
+    }
+    .chip[hidden] { display: none; }
+    .score {
+      position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
+      text-align: center; pointer-events: none; line-height: 1;
+    }
+    .score .n {
+      font-family: "Yatra One", sans-serif;
+      font-size: clamp(3rem, 11vh, 6rem);
+      color: #fff;
+      -webkit-text-stroke: 3px var(--sign-black);
+      paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .score .u { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1rem; color: var(--sign-black); background: var(--sign); padding: 0 10px; border-radius: 6px; }
+    .hint {
+      position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+      background: rgba(20, 20, 20, .8); color: var(--sign);
+      font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.05rem;
+      padding: 6px 16px; border-radius: 999px; pointer-events: none; white-space: nowrap;
+      transition: opacity .2s;
+    }
+    .hint.hide { opacity: 0; }
+
+    /* --- overlays ------------------------------------------------------ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(16, 33, 43, .5);
+      backdrop-filter: blur(3px);
+      display: grid; place-items: center;
+      padding: 16px;
+      z-index: 10;
+      touch-action: manipulation;
+      overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .signpanel {
+      width: 100%; max-width: 440px;
+      background: var(--sign);
+      border: 6px solid var(--sign-red);
+      outline: 3px solid var(--sign-black);
+      border-radius: 10px;
+      padding: 20px 22px 20px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
+    }
+    .signpanel h1 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 3rem; line-height: 1.05; }
+    .signpanel h2 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 2.1rem; line-height: 1.15; }
+    .signpanel .sub { font-family: "Baloo 2", sans-serif; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .85rem; }
+    .signpanel ol { text-align: left; margin: 12px 0 4px; padding-left: 1.3em; font-weight: 600; }
+    .signpanel li { margin: 5px 0; }
+    .signpanel .note { font-weight: 600; margin-top: 6px; }
+    .signpanel .big {
+      font-family: "Yatra One", sans-serif; font-size: 4.2rem; line-height: 1; margin: 6px 0 0;
+      color: #fff; -webkit-text-stroke: 3px var(--sign-black); paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .signpanel .label { font-family: "Baloo 2", sans-serif; font-weight: 800; margin-top: 14px; }
+    .signpanel .record { display: inline-block; background: var(--sign-red); color: #fff; font-weight: 800; padding: 2px 12px; border-radius: 999px; margin-top: 6px; }
+    .signpanel .record[hidden] { display: none; }
+    .board-list { list-style: none; padding: 0; margin: 12px 0 0; text-align: left; }
+    .board-list li {
+      display: flex; justify-content: space-between;
+      background: var(--paper); border: 2px solid var(--sign-black);
+      border-radius: 8px; padding: 5px 12px; margin: 6px 0; font-weight: 800;
+    }
+    .board-list li.win { background: var(--sign-black); color: var(--sign); }
+    .row { display: flex; gap: 8px; margin-top: 8px; }
+    .row .btn { margin-top: 0; }
+    .btn {
+      display: block; width: 100%;
+      margin-top: 12px; padding: 12px;
+      border: 0; border-radius: 10px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.2rem "Baloo 2", sans-serif;
+      cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+    }
+    .btn:active { box-shadow: none; transform: translateY(2px); }
+    .btn.secondary { background: var(--sign-black); color: var(--sign); }
+  </style>
+</head>
+<body>
+<div class="shop">
+  <header class="sign">
+    <a class="back" href="../../index.html">← खेलहरू</a>
+    <div class="board">
+      <span class="np">डन्डी बियो</span>
+      <span class="en">Pop it · whack it · measure it</span>
+    </div>
+    <div class="tools">
+      <button class="round" id="mute" aria-label="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="hud">
+      <span class="chip" id="chances">मौका ●●●</span>
+      <span class="chip" id="playerChip" hidden></span>
+      <span class="chip" id="bestChip">रेकर्ड: ०</span>
+    </div>
+    <div class="score"><div class="n" id="score">०</div><span class="u">अंक · points</span></div>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="signpanel">
+    <h1>डन्डी बियो</h1>
+    <div class="sub">Dandi Biyo</div>
+    <ol>
+      <li><b>Flick it out:</b> hold, then let go, to flick the biyo out of the hole. A fielder catches it? <b>आउट!</b></li>
+      <li><b>Guard the hole:</b> a fielder throws it back at the hole. <b>Tap</b> to hit it away. If it drops in, you're out and <b>lose all your points</b>.</li>
+      <li><b>Score:</b> tap to tip the biyo up. <b>Quick taps</b> = extra hits in the air. <b>Hold and let go</b> = the big hit.</li>
+      <li>Distance from the hole is counted in <b>dandi</b> lengths for 1 hit, <b>biyo</b> lengths for 2, <b>finger-spans</b> for 3. Three misses in a row ends your innings.</li>
+    </ol>
+    <p class="note">Laptop: Space works the same as tapping / holding</p>
+    <button class="btn" id="soloBtn">एक्लै खेलौं · Solo</button>
+    <div class="label">साथीसँग · Pass the phone</div>
+    <div class="row">
+      <button class="btn secondary" data-players="2">२ जना</button>
+      <button class="btn secondary" data-players="3">३ जना</button>
+      <button class="btn secondary" data-players="4">४ जना</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="turnScreen" hidden>
+  <div class="signpanel">
+    <h2 id="turnTitle"></h2>
+    <p class="note" id="turnNote"></p>
+    <button class="btn" id="turnBtn">तयार · Ready</button>
+  </div>
+</div>
+
+<div class="overlay" id="resultScreen" hidden>
+  <div class="signpanel">
+    <h2 id="resultTitle"></h2>
+    <div class="big" id="resultScore"></div>
+    <p class="note" id="resultNote"></p>
+    <span class="record" id="newRecord" hidden>नयाँ रेकर्ड! New record!</span>
+    <ul class="board-list" id="leaderboard"></ul>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn secondary" id="againBtn">फेरि खेलौं · Play again</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Design knobs -- tweak these first. All distances are in metres.
+// Rules follow the Nepali game: flick out of the hole -> fielder throws it back at the hole
+// -> tip it up and strike it (extra mid-air hits switch to smaller measuring units).
+// ============================================================================
+const UNITS = [                    // measuring stick by number of mid-air hits
+  { len: 0.6,  np: "डन्डी", en: "dandi" },         // 1 hit: dandi lengths (~60 cm)
+  { len: 0.15, np: "बियो", en: "biyo" },           // 2 hits: biyo lengths (~15 cm)
+  { len: 0.1,  np: "बित्ता", en: "finger-spans" },  // 3 hits: forefinger-to-little-finger spans
+];
+const DANDI_LENGTH = UNITS[0].len; // the stick itself (also the field markers)
+const VIEW_HEIGHT = 7;             // metres of field visible top-to-bottom
+const GRAVITY = 9.8;
+const DRAG = 0.035;                // air resistance on the biyo
+const HOLE_X = 0.55;               // the hole sits just in front of the batter
+const HOLE_RADIUS = 0.2;           // a throw-back landing this close = in the hole (out, points lost)
+const LAUNCH_SPEED = [6, 15];      // flicking the biyo out of the hole, weak -> full (m/s)
+const LAUNCH_ANGLE = [18, 30];     // flicks from the hole fly fairly flat (degrees)
+const THROW_ERROR = 0.1;           // a fielder's aim at the hole: ± this many metres...
+const THROW_ERROR_PER_M = 0.035;   // ...plus this much per metre of throw (close throws are deadly)
+const THROW_ARM = [0.6, 1.5];      // each fielder's throwing arm, drawn per innings (low = sharp, high = wild)
+const THROW_LUCK = [0.6, 1.6];     // and every single throw varies on top of that
+const THROW_ANGLE = 32;
+const BAT_AWAY_SPEED = [6, 10];    // batting the throw-back away
+const TIP_SPEED = [5.0, 6.4];      // tapping the biyo's tip makes it leap up (each leap differs)
+const TIP_DRIFT = [-0.1, 0.4];     // ...and drifts a little sideways
+const JUGGLE_SPEED = 4.3;          // a quick extra hit in mid-air (±10%)
+const HIT_SPREAD_SPEED = 0.1;      // every big hit: ± this fraction of speed...
+const HIT_SPREAD_ANGLE = 6;        // ...and ± this many degrees
+const EDGE_CHANCE = 0.12;          // odds of catching the biyo's pointed tip instead of its middle
+const EDGE_SPEED = [0.55, 0.8];    // an edge hit keeps only this much speed...
+const EDGE_ANGLE = 15;             // ...and flies off up to ± this many degrees
+const TAP_MAX = 0.15;              // press shorter than this = extra hit; longer = big hit
+const MAX_JUGGLES = 2;             // so at most 3 hits in total
+const HIT_ZONE = [0.25, 1.5];      // biyo height (m) at which a hit can connect
+const SWEET_SPOT = 0.8;            // waist height: the perfect big hit
+const WINDUP_TIME = 0.45;          // seconds of holding for a full-power swing
+const MIN_POWER = 0.3;
+const HIT_SPEED = [9, 24];         // big-hit launch speed (m/s), weak -> perfect full power
+const BASE_ANGLE = 28;             // launch angle (degrees) for a sweet-spot hit
+const ANGLE_SPREAD = 32;           // hitting early/late tilts the angle up to ± this much
+const FIELDER_SPEED = 4.2;         // m/s (village kids, not athletes), rises a little every round
+const FIELDER_SPEEDUP = 0.03;
+const FIELDER_REACTION = [0.35, 0.7];  // seconds before a fielder starts running
+const MISJUDGE = 1.4;              // fielders guess the landing spot ± this many metres...
+const MISJUDGE_PER_M = 0.12;       // ...plus this much per metre they have to run
+const CATCH_REACH = 0.9;
+const CATCH_HEIGHT = 1.9;
+const CATCH_CHANCE = 0.6;          // odds of holding on once the biyo reaches their hands
+const HARD_HIT_SPEED = 16;         // hit off the dandi faster than this (m/s) is harder to hold...
+const HARD_HIT_FACTOR = 0.45;      // ...by this factor
+const MAX_MISSES = 3;              // misses in a row that end the innings (gilli-danda rule; confirm for Nepal)
+const PRAISE = [[150, "गजब!"], [70, "राम्रो!"], [35, "ठिकै!"]];
+
+const $ = id => document.getElementById(id);
+const toNep = n => String(n).replace(/\d/g, d => "०१२३४५६७८९"[d]);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+
+// ============================================================================
+// Sound: wooden tok, crack, whoosh, cheers -- all synthesized
+// ============================================================================
+const Sound = {
+  ctx: null, muted: false, noise: null, lastTick: 0,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    const len = this.ctx.sampleRate;
+    this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  },
+  burst(dur, type, freq, vol, delay = 0, sweepTo = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(freq, t);
+    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.ctx.destination); src.start(t); src.stop(t + dur);
+  },
+  tone(f0, f1, dur, vol, type = "sine", delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur);
+  },
+  pop() { this.tone(900, 600, 0.05, 0.25, "triangle"); this.burst(0.03, "highpass", 3000, 0.2); },
+  whoosh() { this.burst(0.2, "bandpass", 600, 0.25, 0, 2400); },
+  crack(q) { this.tone(1500, 700, 0.07, 0.35, "triangle"); this.burst(0.06, "highpass", 2000, 0.5 * q + 0.2); },
+  whiff() { this.burst(0.25, "bandpass", 1500, 0.12, 0, 400); this.tone(300, 150, 0.25, 0.08, "sine", 0.05); },
+  land() { this.burst(0.1, "lowpass", 500, 0.3); },
+  tick() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    if (now - this.lastTick < 0.045) return;
+    this.lastTick = now;
+    this.tone(1200, 1200, 0.03, 0.05, "square");
+  },
+  out() { this.tone(520, 260, 0.45, 0.16, "sawtooth"); this.burst(0.5, "bandpass", 1200, 0.12, 0.05); },
+  cheer() { for (let i = 0; i < 4; i++) this.burst(0.18, "bandpass", 1000 + i * 250, 0.1, i * 0.07); },
+};
+
+// ============================================================================
+// Canvas + camera (world in metres; the batter stands at x = 0)
+// ============================================================================
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+let CW = 400, CH = 600, dpr = 1, S = 80;     // canvas CSS size, pixels per metre
+let groundY = 500;                            // screen y of the ground (CSS px)
+let camX = 0, camY = 0;
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  CW = r.width; CH = r.height;
+  canvas.width = Math.round(CW * dpr); canvas.height = Math.round(CH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  S = CH / VIEW_HEIGHT;
+  groundY = CH * 0.86;
+}
+window.addEventListener("resize", resize);
+
+const batterScreenX = () => Math.min(CW * 0.22, 140);
+const sx = x => batterScreenX() + (x - camX) * S;
+const sy = y => groundY - (y - camY) * S;
+
+// ============================================================================
+// Game state
+// ============================================================================
+let players = 1, current = 0, scores = [];
+let best = store.get("dandibiyo.best", 0);
+let st = null;     // current innings
+let now = 0;       // game clock (s)
+
+const restingBiyo = () => ({ x: HOLE_X, y: 0.04, vx: 0, vy: 0, rot: 0, spin: 0, drag: true, skid: 0 });
+
+function newInnings() {
+  st = {
+    phase: "launch",
+    total: 0, misses: 0, rounds: 0, lost: 0,
+    hits: 0, juggles: 0,
+    batX: 0, batTarget: 0,
+    biyo: restingBiyo(),
+    press: null, swingT: -1, swingPower: 1, tipT: -1, swungBack: false,
+    fielders: [], fielderSpeed: FIELDER_SPEED, thrower: null, throwAt: 0, restUntil: 0,
+    measure: null, floaters: [],
+  };
+  placeFielders(0, true);
+  camX = 0; camY = 0;
+  updateHud(); hintFor();
+}
+
+function placeFielders(fromX, snap) {
+  // Three kids spread out down the field ahead of the batter.
+  const deep = st.rounds * 1.2;
+  const spots = [[8, 13], [16, 23], [26, 34]].map(([a, b]) => fromX + rand(a, b) + deep);
+  if (!st.fielders.length) {
+    st.fielders = spots.map((x, i) => ({ x, home: x, target: x, t: 0, catching: 0, arm: rand(...THROW_ARM),
+      shirt: ["#2e7d32", "#1565c0", "#ef6c00"][i], skin: ["#a86b45", "#c68a5e", "#8d5a3b"][i] }));
+  }
+  st.fielders.forEach((f, i) => { f.home = spots[i]; f.target = spots[i]; f.catching = 0; if (snap) f.x = spots[i]; });
+}
+
+function hintFor() {
+  const learning = st && st.rounds < 2;
+  const text = !st ? "" : {
+    launch: learning ? "Hold, then let go, to flick the biyo out" : "",
+    incoming: "Tap to hit it away from the hole!",
+    strikeReady: learning ? "Tap to tip the biyo up" : "",
+    strikeAir: learning ? "Quick tap = extra hit · Hold & let go = big hit" : "",
+  }[st.phase] || "";
+  const el = $("hint");
+  if (!text) { el.classList.add("hide"); return; }
+  el.textContent = text; el.classList.remove("hide");
+}
+
+function updateHud() {
+  $("score").textContent = toNep(st ? st.total : 0);
+  const left = MAX_MISSES - (st ? st.misses : 0);
+  $("chances").textContent = `मौका ${"●".repeat(Math.max(left, 0))}${"○".repeat(MAX_MISSES - Math.max(left, 0))}`;
+  $("bestChip").textContent = `रेकर्ड: ${toNep(best)}`;
+  const chip = $("playerChip");
+  chip.hidden = players === 1;
+  chip.textContent = `खेलाडी ${toNep(current + 1)}`;
+}
+
+function floater(text, x, y, color, big = false) { st.floaters.push({ text, x, y, color, big, t: 0 }); }
+const batterReady = () => Math.abs(st.batX - st.batTarget) < 0.05;
+const reachX = () => st.batX + HOLE_X;          // where the batter's dandi meets the biyo
+
+// ============================================================================
+// Actions
+// ============================================================================
+function press() {
+  if (!st) return;
+  Sound.init();
+  if (st.phase === "launch" && batterReady()) st.press = now;
+  else if (st.phase === "incoming") batBack();
+  else if (st.phase === "strikeReady" && batterReady()) tipUp();
+  else if (st.phase === "strikeAir" && st.press === null) st.press = now;
+}
+
+function release() {
+  if (!st || st.press === null) return;
+  const held = now - st.press;
+  st.press = null;
+  if (st.phase === "launch") launch(clamp(held / WINDUP_TIME, MIN_POWER, 1));
+  else if (st.phase === "strikeAir") {
+    if (held < TAP_MAX) juggle();
+    else bigHit(clamp(held / WINDUP_TIME, MIN_POWER, 1));
+  }
+}
+
+// 1) Flick the biyo out of the hole ------------------------------------------
+function launch(power) {
+  const b = st.biyo;
+  const speed = lerp(LAUNCH_SPEED[0], LAUNCH_SPEED[1], power) * rand(0.95, 1.05);
+  const angle = rand(LAUNCH_ANGLE[0], LAUNCH_ANGLE[1]) * Math.PI / 180;
+  b.vx = Math.cos(angle) * speed; b.vy = Math.sin(angle) * speed; b.spin = rand(14, 20); b.drag = true;
+  st.hitSpeed = speed;
+  st.swingT = now; st.swingPower = power;
+  st.phase = "launchFlight";
+  Sound.crack(0.5);
+  fieldersChase();
+  hintFor();
+}
+
+function fieldersChase() {
+  // Each kid guesses where it will come down (not perfectly) and runs after a moment.
+  const landX = predictLanding(st.biyo);
+  for (const f of st.fielders) {
+    const err = MISJUDGE + MISJUDGE_PER_M * Math.abs(landX - f.x);
+    f.target = landX + rand(-err, err);
+    f.t = -rand(...FIELDER_REACTION);
+    f.tried = false;
+  }
+}
+
+function tryCatch(f) {
+  // One attempt per fielder per hit; hard, flat hits and fingertip catches often get dropped.
+  const b = st.biyo;
+  f.tried = true;
+  let chance = CATCH_CHANCE;
+  if ((st.hitSpeed || 0) > HARD_HIT_SPEED) chance *= HARD_HIT_FACTOR;
+  if (Math.abs(b.x - f.x) > CATCH_REACH * 0.5) chance *= 0.75;
+  if (Math.random() < chance) { caught(f); return true; }
+  st.drops = (st.drops || 0) + 1;
+  b.vx *= 0.3; b.vy = Math.abs(b.vy) * 0.25 + 1;           // it pops out of their hands
+  Sound.whiff();
+  floater("छुट्यो!", f.x, 2.6, "#fff");
+  return false;
+}
+
+// 2) A fielder fetches it and throws it back at the hole ----------------------
+function startFetch() {
+  const b = st.biyo;
+  st.phase = "fetch";
+  st.thrower = st.fielders.reduce((a, c) => Math.abs(c.x - b.x) < Math.abs(a.x - b.x) ? c : a);
+  st.thrower.target = b.x + 0.3;
+}
+
+function throwBack() {
+  const b = st.biyo, f = st.thrower;
+  b.x = f.x - 0.2; b.y = 1.3; b.drag = false; b.spin = rand(8, 12);
+  const err = (THROW_ERROR + THROW_ERROR_PER_M * Math.abs(b.x - HOLE_X)) * f.arm * rand(...THROW_LUCK);
+  const aim = HOLE_X + rand(-err, err);
+  // speed that lands it on `aim` from 1.3 m up at THROW_ANGLE (no drag on the throw)
+  const R = Math.max(1.5, b.x - aim), th = THROW_ANGLE * Math.PI / 180, c = Math.cos(th);
+  const v = Math.sqrt(GRAVITY * R * R / (2 * c * c * (R * Math.tan(th) + 1.3)));
+  b.vx = -v * c; b.vy = v * Math.sin(th);
+  st.swungBack = false;
+  st.phase = "incoming";
+  Sound.whoosh();
+  hintFor();
+}
+
+function batBack() {
+  if (st.swungBack) return;                   // one swing to defend the hole
+  st.swungBack = true;
+  st.swingT = now; st.swingPower = 0.8;
+  Sound.whoosh();
+  const b = st.biyo;
+  const inZone = b.x > HOLE_X - 0.3 && b.x < HOLE_X + 1.4 && b.y > 0.1 && b.y < 1.9;
+  if (!inZone) return;
+  b.vx = rand(...BAT_AWAY_SPEED); b.vy = rand(2.5, 4); b.drag = true; b.spin = rand(12, 18);
+  st.phase = "batted";
+  Sound.crack(0.6);
+  floater("ट्याक!", HOLE_X + 1, 2.2, "#fff");
+  hintFor();
+}
+
+function holed() {
+  const b = st.biyo;
+  Object.assign(b, { x: HOLE_X, y: -0.03, vx: 0, vy: 0, spin: 0 });
+  st.phase = "holed";
+  st.lost = st.total; st.total = 0;
+  updateHud();
+  Sound.out();
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  floater("खाल्डोमा!", HOLE_X, 2.8, "#ffd21a", true);
+  setTimeout(() => endInnings("holed"), 1500);
+}
+
+// 3) Tip it up and strike it from where it lies -------------------------------
+function startStrike() {
+  const b = st.biyo;
+  Object.assign(b, { vx: 0, vy: 0, y: 0.04, rot: 0.15, spin: 0, drag: true, skid: 0 });
+  st.phase = "strikeReady";
+  st.hits = 0; st.juggles = 0;
+  st.batTarget = b.x - HOLE_X;
+  placeFielders(b.x, false);
+  hintFor();
+}
+
+function tipUp() {
+  const b = st.biyo;
+  st.phase = "strikeAir"; st.tipT = now; st.hits = 0; st.juggles = 0;
+  b.vy = rand(...TIP_SPEED); b.vx = rand(...TIP_DRIFT); b.spin = rand(9, 13) * (Math.random() < 0.5 ? -1 : 1);
+  Sound.pop();
+  hintFor();
+}
+
+function inReach(b, lo = HIT_ZONE[0], hi = HIT_ZONE[1]) {
+  return b.y >= lo && b.y <= hi && Math.abs(b.x - reachX()) < 0.8;
+}
+
+function juggle() {
+  const b = st.biyo;
+  st.swingT = now; st.swingPower = 0.3;
+  if (st.juggles >= MAX_JUGGLES || !inReach(b, 0.15, 1.9)) { Sound.whoosh(); return; }
+  st.juggles += 1; st.hits += 1;
+  b.vy = JUGGLE_SPEED * rand(0.9, 1.1); b.vx = rand(0.1, 0.5);
+  Sound.pop();
+  floater(`${toNep(st.hits)} पटक`, b.x, b.y + 1, "#fff");
+}
+
+function bigHit(power) {
+  const b = st.biyo;
+  st.swingT = now; st.swingPower = power;
+  Sound.whoosh();
+  if (!inReach(b)) return;                    // swung and missed; it keeps falling
+  const [lo, hi] = HIT_ZONE;
+  // d < 0: hit it low (late) -> flat/grounder; d > 0: hit it high (early) -> skied.
+  const d = b.y >= SWEET_SPOT ? (b.y - SWEET_SPOT) / (hi - SWEET_SPOT) : -(SWEET_SPOT - b.y) / (SWEET_SPOT - lo);
+  const quality = 1 - Math.pow(Math.abs(d), 1.4) * 0.55;
+  let speed = lerp(HIT_SPEED[0], HIT_SPEED[1], power * quality) * rand(1 - HIT_SPREAD_SPEED, 1 + HIT_SPREAD_SPEED);
+  let deg = BASE_ANGLE + d * ANGLE_SPREAD + rand(-HIT_SPREAD_ANGLE, HIT_SPREAD_ANGLE);
+  if (Math.random() < EDGE_CHANCE) {
+    // caught the pointed tip of the biyo: it squirts off short and at an odd angle
+    speed *= rand(...EDGE_SPEED);
+    deg += rand(-EDGE_ANGLE, EDGE_ANGLE);
+    floater("किनारामा!", b.x, b.y + 1.2, "#fff");
+  }
+  const angle = clamp(deg, 3, 80) * Math.PI / 180;
+  b.vx = Math.cos(angle) * speed; b.vy = Math.sin(angle) * speed; b.spin = rand(18, 26);
+  st.hitSpeed = speed;
+  st.hits += 1;
+  st.phase = "strikeFlight";
+  Sound.crack(quality);
+  if (navigator.vibrate) navigator.vibrate(20);
+  fieldersChase();
+  hintFor();
+}
+
+function miss() {
+  st.misses += 1;
+  Sound.whiff();
+  floater("फुस्स!", st.biyo.x, 2.2, "#fff");
+  updateHud();
+  if (st.misses >= MAX_MISSES) { st.phase = "done"; setTimeout(() => endInnings("misses"), 700); return; }
+  st.phase = "rest";
+  st.restUntil = now + 0.6;
+  st.afterRest = startStrike;
+}
+
+function landedScoring() {
+  const b = st.biyo;
+  Sound.land();
+  b.skid = Math.max(0, b.vx * 0.12); b.vx = 0; b.vy = 0; b.y = 0.04;
+  const unit = UNITS[Math.min(st.hits, UNITS.length) - 1];
+  st.phase = "measure";
+  st.measure = { unit, count: 0, shown: 0, done: false };
+}
+
+function caught(f) {
+  const b = st.biyo;
+  b.vx = 0; b.vy = 0; b.x = f.x - 0.15; b.y = 1.45;
+  st.phase = "caught";
+  f.catching = 1;
+  Sound.out();
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  floater("आउट!", f.x, 3.2, "#ffd21a", true);
+  setTimeout(() => endInnings("caught"), 1400);
+}
+
+function nextRound() {
+  if (!st || st.phase !== "measure") return;
+  st.rounds += 1;
+  st.fielderSpeed *= 1 + FIELDER_SPEEDUP;
+  st.biyo = restingBiyo();
+  st.batTarget = 0;
+  st.measure = null; st.swingT = -1; st.press = null;
+  st.phase = "launch";
+  placeFielders(0, false);
+  hintFor();
+}
+
+// ============================================================================
+// Physics helpers
+// ============================================================================
+function stepBiyo(b, dt) {
+  const v = Math.hypot(b.vx, b.vy);
+  const k = b.drag ? DRAG : 0;
+  b.vx -= k * v * b.vx * dt;
+  b.vy -= (GRAVITY + k * v * b.vy) * dt;
+  b.x += b.vx * dt;
+  b.y += b.vy * dt;
+  b.rot += b.spin * dt;
+}
+
+function predictLanding(b0) {
+  const b = { ...b0 };
+  for (let i = 0; i < 3000 && b.y > 0; i++) stepBiyo(b, 1 / 120);
+  return b.x;
+}
+
+// ============================================================================
+// Update
+// ============================================================================
+function update(dt) {
+  now += dt;
+  if (!st) return;
+  const b = st.biyo;
+  st.batX += clamp(st.batTarget - st.batX, -8 * dt, 8 * dt);
+
+  switch (st.phase) {
+    case "launchFlight":
+    case "strikeFlight": {
+      const prevY = b.y;
+      stepBiyo(b, dt);
+      for (const f of st.fielders) {
+        if (!f.tried && f.t > 0 && b.vy < 0 && b.y < CATCH_HEIGHT && prevY >= b.y && b.y > 0.3 && Math.abs(b.x - f.x) < CATCH_REACH) {
+          if (tryCatch(f)) break;
+        }
+      }
+      if ((st.phase === "launchFlight" || st.phase === "strikeFlight") && b.y <= 0) {
+        b.y = 0.04;
+        if (st.phase === "launchFlight") { Sound.land(); b.vx = 0; b.vy = 0; b.spin = 0; startFetch(); }
+        else landedScoring();
+      }
+      break;
+    }
+    case "fetch": {
+      const f = st.thrower;
+      f.x += clamp(f.target - f.x, -st.fielderSpeed * dt, st.fielderSpeed * dt);
+      if (Math.abs(f.target - f.x) < 0.05) { st.phase = "aim"; st.throwAt = now + 0.45; }
+      break;
+    }
+    case "aim":
+      if (now >= st.throwAt) throwBack();
+      break;
+    case "incoming":
+    case "batted":
+      stepBiyo(b, dt);
+      if (b.y <= 0) {
+        b.y = 0.04; b.vx = 0; b.vy = 0; b.spin = 0;
+        if (st.phase === "incoming" && Math.abs(b.x - HOLE_X) < HOLE_RADIUS) holed();
+        else { Sound.land(); st.phase = "rest"; st.restUntil = now + 0.5; st.afterRest = startStrike; }
+      }
+      break;
+    case "rest":
+      if (now >= st.restUntil) st.afterRest();
+      break;
+    case "strikeAir":
+      stepBiyo(b, dt);
+      b.vx *= 0.98;
+      if (b.y <= 0.02 && b.vy < 0) { b.y = 0.04; b.vx = 0; b.vy = 0; b.spin = 0; st.press = null; miss(); }
+      break;
+    case "measure": {
+      if (b.skid > 0) { const d = Math.min(b.skid, 3 * dt); b.x += d; b.skid -= d; break; }
+      const m = st.measure;
+      if (!m.count) m.count = Math.max(0, Math.round(Math.abs(b.x - HOLE_X) / m.unit.len));
+      const rate = Math.max(25, m.count / 1.1);          // count it out in about a second
+      const before = m.shown;
+      m.shown = Math.min(m.count, m.shown + rate * dt);
+      if (Math.floor(m.shown) > Math.floor(before)) Sound.tick();
+      if (!m.done && m.shown >= m.count) {
+        m.done = true;
+        st.total += m.count;
+        st.misses = 0;
+        updateHud();
+        const praise = PRAISE.find(([n]) => m.count >= n);
+        floater(`${toNep(m.count)} ${m.unit.np}${praise ? " · " + praise[1] : ""}`, b.x, 2.4, praise ? "#ffd21a" : "#fff", !!praise);
+        if (praise) Sound.cheer();
+        setTimeout(nextRound, 1400);
+      }
+      break;
+    }
+  }
+
+  const flying = st.phase === "launchFlight" || st.phase === "strikeFlight";
+  for (const f of st.fielders) {
+    f.t += dt;
+    if (flying && f.t > 0) f.x += clamp(f.target - f.x, -st.fielderSpeed * dt, st.fielderSpeed * dt);
+    else if (!flying && f !== st.thrower && !f.catching) f.x += clamp(f.home - f.x, -4 * dt, 4 * dt);
+  }
+  if (!["fetch", "aim"].includes(st.phase) && st.thrower && st.phase !== "incoming") {
+    const f = st.thrower; f.x += clamp(f.home - f.x, -4 * dt, 4 * dt);
+    if (Math.abs(f.home - f.x) < 0.05) st.thrower = null;
+  }
+  st.floaters.forEach(fl => { fl.t += dt; fl.y += 0.8 * dt; });
+  st.floaters = st.floaters.filter(fl => fl.t < (fl.big ? 1.6 : 1.1));
+
+  // camera: follow the biyo (or the fetching fielder) in flight, otherwise frame the batter
+  const followBiyo = ["launchFlight", "strikeFlight", "incoming", "batted", "measure", "caught", "holed"].includes(st.phase);
+  const focus = ["fetch", "aim"].includes(st.phase) ? st.thrower.x : b.x;
+  const follow = followBiyo || ["fetch", "aim"].includes(st.phase);
+  const targetX = follow ? Math.max(st.batX, focus - (CW * 0.55 - batterScreenX()) / S) : st.batX;
+  camX = lerp(camX, targetX, 1 - Math.exp(-dt * (follow ? 5 : 4)));
+  const topRoom = (groundY - Math.min(220, CH * 0.3)) / S;   // keep the biyo below the score display
+  const targetY = follow && b.y > topRoom ? b.y - topRoom : 0;
+  camY = lerp(camY, targetY, 1 - Math.exp(-dt * 6));
+  if (follow) camY = Math.max(camY, b.y - topRoom);           // never let a fast rise outrun the camera
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+// Screen y of the ground this frame. It moves down when the camera rises to follow a high biyo,
+// so the ground, scenery, kids and biyo all stay in step.
+let GY = 500;
+
+// Stable pseudo-random value per world tile, so scenery never reshapes as the camera pans.
+const hash = k => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+
+// Run draw(screenX, tileIndex) for every tile of a parallax layer that is on screen.
+// `f` is how fast the layer moves relative to the field (0 = fixed sky, 1 = ground).
+function layer(f, tile, draw) {
+  const shift = camX * S * f;
+  for (let k = Math.floor(shift / tile) - 2; k * tile - shift < CW + tile; k++) draw(k * tile - shift, k);
+}
+
+function drawScene() {
+  GY = groundY + camY * S;
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, GY);
+  sky.addColorStop(0, "#8fcbe6"); sky.addColorStop(1, "#e8f5f5");
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, CW, CH);
+
+  // far Himalaya (slow parallax, moves a little with the camera height)
+  const mBase = groundY + camY * S * 0.5;
+  const peakY = k => mBase - CH * 0.42 - hash(k) * 60;
+  ctx.fillStyle = "#b9ccd6";
+  ctx.beginPath(); ctx.moveTo(-10, CH);
+  layer(0.08, 260, (x, k) => { ctx.lineTo(x + 130, peakY(k)); ctx.lineTo(x + 260, mBase - CH * 0.2); });
+  ctx.lineTo(CW + 10, CH); ctx.fill();
+  ctx.fillStyle = "#f5fafb";
+  layer(0.08, 260, (x, k) => {
+    const px = x + 130, py = peakY(k);
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - 34, py + 40); ctx.lineTo(px + 34, py + 40); ctx.fill();
+  });
+
+  // near terraced hills
+  const hillY = GY - CH * 0.16;
+  ctx.fillStyle = "#86ad5e";
+  ctx.beginPath(); ctx.moveTo(-10, GY);
+  let started = false;
+  layer(0.25, 180, (x, k) => {
+    if (!started) { ctx.lineTo(x, hillY); started = true; }
+    ctx.quadraticCurveTo(x + 90, hillY - 50 - hash(k + 50) * 40, x + 180, hillY);
+  });
+  ctx.lineTo(CW + 10, GY); ctx.fill();
+  ctx.strokeStyle = "rgba(60, 90, 40, .35)"; ctx.lineWidth = 2;
+  for (let t = 1; t < 4; t++) { ctx.beginPath(); ctx.moveTo(0, hillY + t * 12); ctx.lineTo(CW, hillY + t * 12); ctx.stroke(); }
+
+  // a village house on the hill every so often
+  layer(0.25, 420, (x, k) => {
+    if (hash(k + 99) > 0.8) return;
+    const hx = x + 120 + hash(k + 7) * 200, hy = hillY - 18;
+    ctx.fillStyle = "#b5533c"; ctx.fillRect(hx, hy - 26, 50, 26);                  // red mud walls
+    ctx.fillStyle = "#e8dcc4"; ctx.fillRect(hx, hy - 12, 50, 12);                  // white-washed lower band
+    ctx.fillStyle = "#6d4c41"; ctx.beginPath(); ctx.moveTo(hx - 8, hy - 26); ctx.lineTo(hx + 25, hy - 46); ctx.lineTo(hx + 58, hy - 26); ctx.fill();
+    ctx.fillStyle = "#3e2723"; ctx.fillRect(hx + 20, hy - 22, 10, 10);
+  });
+
+  // ground (dusty field) with distance pegs every 10 dandi
+  ctx.fillStyle = "#c9ab77"; ctx.fillRect(0, GY, CW, Math.max(0, CH - GY));
+  ctx.fillStyle = "#a88a55"; ctx.fillRect(0, GY, CW, 4);
+  ctx.fillStyle = "rgba(90, 70, 40, .25)";
+  for (let i = Math.floor(camX / 0.7) - 2; i < camX / 0.7 + CW / S / 0.7 + 2; i++) {
+    ctx.fillRect(sx(i * 0.7), GY + 10 + hash(i) * 30, 4, 3);
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.font = `800 ${Math.round(S * 0.22)}px "Baloo 2", sans-serif`;
+  const every = 10;
+  const first = Math.max(1, Math.floor((camX - 2) / (every * DANDI_LENGTH)));
+  for (let k = first; k < first + 20; k++) {
+    const x = sx(HOLE_X + k * every * DANDI_LENGTH);
+    if (x > CW + 40) break;
+    ctx.fillStyle = "#6d4c41"; ctx.fillRect(x - 3, GY - S * 0.25, 6, S * 0.25);
+    ctx.fillStyle = "rgba(20,20,20,.6)"; ctx.fillText(toNep(k * every), x, GY + 6);
+  }
+
+  // grass tufts
+  ctx.strokeStyle = "#6f8f3e"; ctx.lineWidth = 2;
+  for (let i = Math.floor(camX / 1.9) - 1; i < camX / 1.9 + CW / S / 1.9 + 2; i++) {
+    const x = sx(i * 1.9 + hash(i + 3) * 0.9);
+    ctx.beginPath(); ctx.moveTo(x - 4, GY); ctx.lineTo(x - 7, GY - 8); ctx.moveTo(x, GY); ctx.lineTo(x, GY - 11); ctx.moveTo(x + 4, GY); ctx.lineTo(x + 7, GY - 8); ctx.stroke();
+  }
+
+  // the hole
+  ctx.fillStyle = "#5d4323";
+  ctx.beginPath(); ctx.ellipse(sx(HOLE_X), GY + 2, S * 0.14, S * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawKid(x, y, s, o) {
+  // Side-view kid facing o.dir (1 = right). o: { skin, shirt, pose, arm, run }
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s * o.dir, s);
+  const run = o.run ? Math.sin(o.run * 14) : 0;
+  // legs
+  ctx.strokeStyle = o.skin; ctx.lineWidth = 9; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-4, -46); ctx.lineTo(-6 + run * 10, -4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4, -46); ctx.lineTo(6 - run * 10, -4); ctx.stroke();
+  // shorts + shirt
+  ctx.fillStyle = "#1f3557"; ctx.fillRect(-12, -62, 24, 20);
+  ctx.fillStyle = o.shirt; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-13, -100, 26, 42, 8) : ctx.rect(-13, -100, 26, 42); ctx.fill();
+  // head
+  ctx.fillStyle = o.skin; ctx.beginPath(); ctx.arc(2, -114, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#141414"; ctx.beginPath(); ctx.arc(0, -118, 15, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
+  ctx.beginPath(); ctx.arc(9, -115, 2, 0, Math.PI * 2); ctx.fill();
+  // arms: hands up when catching, else by the side / swinging while running
+  ctx.strokeStyle = o.skin; ctx.lineWidth = 7;
+  if (o.pose === "catch") {
+    ctx.beginPath(); ctx.moveTo(0, -94); ctx.lineTo(10, -140); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -94); ctx.lineTo(18, -136); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(0, -94); ctx.lineTo(4 - run * 12, -62); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBatter() {
+  // The batter crouches at x = 0 facing right, holding the dandi in both hands.
+  const x = sx(st ? st.batX : 0), y = GY;
+  const k = S / 80;                         // kid drawn at ~1.5 m tall
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(k * 1.05, k * 1.05);
+  const skin = "#b97a52";
+  // legs (a little crouched)
+  ctx.strokeStyle = skin; ctx.lineWidth = 10; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-6, -50); ctx.lineTo(-18, -26); ctx.lineTo(-14, -4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6, -50); ctx.lineTo(18, -28); ctx.lineTo(16, -4); ctx.stroke();
+  ctx.fillStyle = "#1f3557"; ctx.fillRect(-14, -66, 28, 20);
+  ctx.save(); ctx.translate(0, -66); ctx.rotate(0.28);               // lean forward
+  ctx.fillStyle = "#c8102e"; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-14, -44, 28, 46, 8) : ctx.rect(-14, -44, 28, 46); ctx.fill();
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(4, -60, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#141414"; ctx.beginPath(); ctx.arc(1, -64, 16, Math.PI * 0.9, Math.PI * 2.05); ctx.fill();
+  ctx.beginPath(); ctx.arc(12, -61, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // dandi angle: resting on the biyo tip -> wound up over the shoulder -> swung through
+  const ready = -0.2, back = -2.4, through = 1.1;
+  let a = ready;
+  if (st) {
+    if (st.press !== null) a = lerp(-0.6, back, clamp((now - st.press) / WINDUP_TIME, 0, 1));
+    else if (st.swingT >= 0 && now - st.swingT < 0.3) {
+      const t = clamp((now - st.swingT) / 0.12, 0, 1);
+      a = lerp(back * Math.max(st.swingPower, 0.35), through, t);
+    }
+    else if (st.phase === "incoming") a = -1.3;                    // raised, guarding the hole
+    else if (st.phase === "strikeAir") a = st.tipT >= 0 && now - st.tipT < 0.12 ? ready + 0.35 : -0.6;
+    else if (["launch", "strikeReady", "rest", "fetch", "aim"].includes(st.phase)) a = ready;
+    else a = through;
+  }
+  const hx = 14, hy = -90;                  // hands
+  ctx.strokeStyle = skin; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.moveTo(4, -100); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.save(); ctx.translate(hx, hy); ctx.rotate(Math.PI / 2 + a);
+  ctx.strokeStyle = "#8d6e3f"; ctx.lineWidth = 7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, DANDI_LENGTH * 80 * 1.25); ctx.stroke();
+  ctx.strokeStyle = "#6d5330"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-2, 10); ctx.lineTo(-2, 40); ctx.stroke();
+  ctx.restore();
+  // windup power arc
+  if (st && st.press !== null) {
+    const p = clamp((now - st.press) / WINDUP_TIME, 0, 1);
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.arc(hx, hy, 70, -Math.PI * 0.95, -Math.PI * 0.2); ctx.stroke();
+    ctx.strokeStyle = p >= 1 ? "#d4001a" : "#ffd21a";
+    ctx.beginPath(); ctx.arc(hx, hy, 70, -Math.PI * 0.95, -Math.PI * 0.95 + Math.PI * 0.75 * p); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBiyo() {
+  const b = st ? st.biyo : { x: HOLE_X, y: 0.05, rot: -0.25 };
+  const x = sx(b.x), y = sy(b.y);
+  // shadow
+  ctx.fillStyle = `rgba(60,40,20,${0.3 - clamp(b.y / 12, 0, 0.2)})`;
+  ctx.beginPath(); ctx.ellipse(x, GY + 2, S * 0.1, S * 0.025, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(b.rot);
+  const L = S * 0.17, T = S * 0.035;        // ~17 cm stick, tapered at both ends
+  ctx.fillStyle = "#a07a48"; ctx.strokeStyle = "#5d4323"; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-L / 2, 0); ctx.lineTo(-L / 2 + L * 0.22, -T); ctx.lineTo(L / 2 - L * 0.22, -T);
+  ctx.lineTo(L / 2, 0); ctx.lineTo(L / 2 - L * 0.22, T); ctx.lineTo(-L / 2 + L * 0.22, T); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawFielders() {
+  for (const f of st.fielders) {
+    const x = sx(f.x);
+    if (x < -60 || x > CW + 60) continue;
+    const moving = Math.abs((st.phase === "launchFlight" || st.phase === "strikeFlight" || st.thrower === f ? f.target : f.home) - f.x) > 0.1;
+    drawKid(x, GY, S / 80, { dir: -1, skin: f.skin, shirt: f.shirt, pose: f.catching || (st.thrower === f && st.phase === "aim") || ((st.phase === "launchFlight" || st.phase === "strikeFlight") && Math.abs(st.biyo.x - f.x) < 3) ? "catch" : "stand", run: moving ? now : 0 });
+  }
+}
+
+function drawFloaters() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const fl of st.floaters) {
+    const life = fl.big ? 1.6 : 1.1;
+    ctx.globalAlpha = clamp(1 - fl.t / life, 0, 1);
+    ctx.font = `${fl.big ? 44 : 32}px "Yatra One", sans-serif`;
+    ctx.lineWidth = fl.big ? 8 : 6; ctx.strokeStyle = "#141414";
+    const x = clamp(sx(fl.x), 90, CW - 90), y = sy(fl.y);
+    ctx.strokeText(fl.text, x, y); ctx.fillStyle = fl.color; ctx.fillText(fl.text, x, y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawMeasure() {
+  // the measuring stick (dandi, biyo, or a hand-span) hopping from the hole to the biyo
+  const m = st.measure;
+  if (!m || st.biyo.skid > 0) return;
+  const dir = st.biyo.x >= HOLE_X ? 1 : -1;
+  const x = sx(HOLE_X + dir * m.shown * m.unit.len), y = GY - 4;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(m.shown * Math.PI) * 0.4);
+  ctx.strokeStyle = "#8d6e3f"; ctx.lineWidth = 6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-m.unit.len * S / 2, 0); ctx.lineTo(m.unit.len * S / 2, 0); ctx.stroke();
+  ctx.restore();
+  ctx.font = `800 ${Math.round(S * 0.3)}px "Baloo 2", sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  ctx.lineWidth = 5; ctx.strokeStyle = "#141414"; ctx.fillStyle = "#ffd21a";
+  const label = `${toNep(Math.floor(m.shown))} ${m.unit.np}`;
+  const lx = clamp(x, 70, CW - 70);
+  ctx.strokeText(label, lx, y - 12); ctx.fillText(label, lx, y - 12);
+}
+
+function draw() {
+  drawScene();
+  if (st) drawFielders();
+  drawBatter();
+  drawBiyo();
+  if (st) { drawMeasure(); drawFloaters(); }
+}
+
+let lastT = performance.now();
+function frame(t) {
+  const dt = Math.min((t - lastT) / 1000, 1 / 30);
+  lastT = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Input: tap to pop; hold to wind up, release to swing
+// ============================================================================
+const stage = $("stage");
+let activePointer = null;
+stage.addEventListener("pointerdown", e => {
+  if (activePointer !== null) return;
+  activePointer = e.pointerId;
+  stage.setPointerCapture(e.pointerId);
+  press();
+});
+function pointerUp(e) {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  release();
+}
+stage.addEventListener("pointerup", pointerUp);
+stage.addEventListener("pointercancel", pointerUp);
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat) return;
+  if (!$("startScreen").hidden || !$("turnScreen").hidden || !$("resultScreen").hidden) return;
+  e.preventDefault(); press();
+});
+window.addEventListener("keyup", e => {
+  if (e.code !== "Space") return;
+  e.preventDefault(); release();
+});
+
+// ============================================================================
+// Flow: solo or pass-the-phone
+// ============================================================================
+function beginGame(n) {
+  Sound.init();
+  players = n; current = 0; scores = [];
+  $("startScreen").hidden = true;
+  $("resultScreen").hidden = true;
+  if (players === 1) newInnings();
+  else showTurnScreen();
+}
+
+function showTurnScreen() {
+  st = null;
+  $("turnTitle").textContent = `खेलाडी ${toNep(current + 1)} को पालो`;
+  $("turnNote").textContent = `Pass the phone to Player ${current + 1}.`;
+  $("turnScreen").hidden = false;
+}
+
+function endInnings(reason) {
+  if (!st || st.phase === "over") return;
+  st.phase = "over"; st.reason = reason;
+  scores[current] = { total: st.total, rounds: st.rounds, reason, lost: st.lost };
+  const newRecord = st.total > best;
+  if (newRecord) { best = st.total; store.set("dandibiyo.best", best); }
+  updateHud(); hintFor();
+  setTimeout(() => {
+    if (players > 1 && current < players - 1) { current += 1; showTurnScreen(); }
+    else showResults(newRecord);
+  }, 300);
+}
+
+const REASON = {
+  caught: "आउट! Caught.",
+  holed: "खाल्डोमा! In the hole.",
+  misses: "पालो सकियो · Innings over",
+};
+
+function showResults(newRecord) {
+  const list = $("leaderboard");
+  list.innerHTML = "";
+  if (players === 1) {
+    const s = scores[0];
+    $("resultTitle").textContent = REASON[s.reason];
+    $("resultScore").hidden = false;
+    $("resultScore").textContent = `${toNep(s.total)} अंक`;
+    $("resultNote").textContent = s.reason === "holed"
+      ? `It dropped in the hole, so ${s.lost} point${s.lost === 1 ? "" : "s"} were wiped out. Best ${best}.`
+      : `${s.total} points from ${s.rounds} round${s.rounds === 1 ? "" : "s"} · best ${best}`;
+    $("newRecord").hidden = !newRecord || s.total === 0;
+  } else {
+    const order = scores.map((s, i) => ({ ...s, i })).sort((a, b) => b.total - a.total);
+    const top = order[0].total;
+    const winners = order.filter(s => s.total === top);
+    $("resultTitle").textContent = winners.length > 1 ? "बराबरी! It's a tie!" : `खेलाडी ${toNep(winners[0].i + 1)} जित्यो!`;
+    $("resultScore").hidden = true;
+    $("newRecord").hidden = true;
+    $("resultNote").textContent = "";
+    for (const s of order) {
+      const li = document.createElement("li");
+      if (s.total === top) li.className = "win";
+      li.innerHTML = `<span>खेलाडी ${toNep(s.i + 1)}</span><span>${toNep(s.total)} अंक</span>`;
+      list.appendChild(li);
+    }
+  }
+  $("resultScreen").hidden = false;
+}
+
+function shareText() {
+  if (players === 1) return `🏏 डन्डी बियो: ${toNep(scores[0].total)} अंक (${scores[0].total} points) in one innings! Can you beat me?`;
+  const top = Math.max(...scores.map(s => s.total));
+  return `🏏 डन्डी बियो with ${players} friends: top innings ${toNep(top)} (${top}) points! Your turn.`;
+}
+
+$("soloBtn").addEventListener("click", () => beginGame(1));
+document.querySelectorAll("[data-players]").forEach(b => b.addEventListener("click", () => beginGame(Number(b.dataset.players))));
+$("turnBtn").addEventListener("click", () => { $("turnScreen").hidden = true; newInnings(); });
+$("againBtn").addEventListener("click", () => { $("resultScreen").hidden = true; st = null; $("startScreen").hidden = false; });
+$("shareBtn").addEventListener("click", async () => {
+  const text = shareText();
+  const url = location.href.split("#")[0];
+  try {
+    if (navigator.share) await navigator.share({ title: "Dandi Biyo", text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      $("shareBtn").textContent = "Copied!";
+      setTimeout(() => ($("shareBtn").textContent = "Share"), 1500);
+    }
+  } catch (_) { /* share cancelled */ }
+});
+$("mute").addEventListener("click", () => {
+  Sound.muted = !Sound.muted;
+  $("mute").textContent = Sound.muted ? "🔇" : "🔊";
+});
+
+resize();
+updateHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
