@@ -3,7 +3,7 @@
 Small browser games about the moments every Nepali remembers. Built for phones: open the link and play,
 no install.
 
-**Play:** https://akarmanya-dev.github.io/Nep-games/
+**Play:** https://akarmanya-dev.github.io/Nep-games.github.io/
 
 ## Structure
 
