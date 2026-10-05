@@ -248,11 +248,13 @@ const HOLE_X = 0.55;               // the hole sits just in front of the batter
 const HOLE_RADIUS = 0.2;           // a throw-back landing this close = in the hole (out, points lost)
 const LAUNCH_SPEED = [6, 15];      // flicking the biyo out of the hole, weak -> full (m/s)
 const LAUNCH_ANGLE = [18, 30];     // flicks from the hole fly fairly flat (degrees)
-const THROW_ERROR = 0.1;           // a fielder's aim at the hole: ± this many metres...
-const THROW_ERROR_PER_M = 0.035;   // ...plus this much per metre of throw (close throws are deadly)
-const THROW_ARM = [0.6, 1.5];      // each fielder's throwing arm, drawn per innings (low = sharp, high = wild)
-const THROW_LUCK = [0.6, 1.6];     // and every single throw varies on top of that
-const THROW_ANGLE = 32;
+const THROW_ERROR = 0.25;          // a fielder's aim at the hole: ± this many metres...
+const THROW_ERROR_PER_M = 0.04;    // ...plus this much per metre of throw (close throws are deadliest)
+const THROW_ARM = [0.85, 1.35];    // each fielder's throwing arm, drawn per innings (low = sharp, high = wild)
+const THROW_LUCK = [0.75, 1.5];    // and every single throw varies on top of that
+const WILD_THROW_CHANCE = 0.08;    // now and then a throw is simply bad...
+const WILD_THROW_FACTOR = 2.5;     // ...and misses by this much more
+const THROW_ANGLE = [22, 42];      // from a flat throw to a lob (degrees)
 const BAT_AWAY_SPEED = [6, 10];    // batting the throw-back away
 const TIP_SPEED = [5.0, 6.4];      // tapping the biyo's tip makes it leap up (each leap differs)
 const TIP_DRIFT = [-0.1, 0.4];     // ...and drifts a little sideways
@@ -264,23 +266,32 @@ const EDGE_SPEED = [0.55, 0.8];    // an edge hit keeps only this much speed...
 const EDGE_ANGLE = 15;             // ...and flies off up to ± this many degrees
 const TAP_MAX = 0.15;              // press shorter than this = extra hit; longer = big hit
 const MAX_JUGGLES = 2;             // so at most 3 hits in total
-const HIT_ZONE = [0.25, 1.5];      // biyo height (m) at which a hit can connect
+const CONTACT = [0.08, 2.1];       // the dandi can reach the biyo anywhere in this height range (m)...
+const SURE_CONTACT = [0.3, 1.6];   // ...never misses inside this part of it...
+const EDGE_CONTACT = 0.35;         // ...and connects this often at the very top or bottom of the range
+const SWING_DELAY = 0.06;          // the dandi meets the biyo this long after you let go (s)
 const SWEET_SPOT = 0.8;            // waist height: the perfect big hit
 const WINDUP_TIME = 0.45;          // seconds of holding for a full-power swing
 const MIN_POWER = 0.3;
 const HIT_SPEED = [9, 24];         // big-hit launch speed (m/s), weak -> perfect full power
 const BASE_ANGLE = 28;             // launch angle (degrees) for a sweet-spot hit
 const ANGLE_SPREAD = 32;           // hitting early/late tilts the angle up to ± this much
-const FIELDER_SPEED = 4.2;         // m/s (village kids, not athletes), rises a little every round
+const FIELDER_SPEED = 3.6;         // m/s (village kids, not athletes), rises a little every round
 const FIELDER_SPEEDUP = 0.03;
 const FIELDER_REACTION = [0.35, 0.7];  // seconds before a fielder starts running
-const MISJUDGE = 1.4;              // fielders guess the landing spot ± this many metres...
+const MISJUDGE = 1.8;              // fielders guess the landing spot ± this many metres...
 const MISJUDGE_PER_M = 0.12;       // ...plus this much per metre they have to run
+const READ_TIME = 1.8;             // fielders correct their first guess as they watch it fall (s)
 const CATCH_REACH = 0.9;
-const CATCH_HEIGHT = 1.9;
-const CATCH_CHANCE = 0.6;          // odds of holding on once the biyo reaches their hands
-const HARD_HIT_SPEED = 16;         // hit off the dandi faster than this (m/s) is harder to hold...
-const HARD_HIT_FACTOR = 0.45;      // ...by this factor
+const CATCH_HEIGHT = 1.9;          // fielders can reach up this high...
+const HAND_HEIGHT = 1.4;           // ...but wait for the biyo where it drops to chest height
+const CATCH_SETTLED = 0.68;        // odds of a catch when the kid is waiting underneath...
+const CATCH_ARRIVING = 0.55;       // ...when the kid only just got there...
+const CATCH_RUNNING = 0.3;         // ...and when the kid is still running for it
+const SETTLE_TIME = 0.35;          // seconds of waiting underneath that count as "settled"
+const HARD_HIT_SPEED = 16;         // a flat hit (under HARD_HIT_ANGLE) faster than this (m/s)...
+const HARD_HIT_ANGLE = 25;         // ...is a stinging catch...
+const HARD_HIT_FACTOR = 0.6;       // ...held this much less often
 const MAX_MISSES = 3;              // misses in a row that end the innings (gilli-danda rule; confirm for Nepal)
 const PRAISE = [[150, "गजब!"], [70, "राम्रो!"], [35, "ठिकै!"]];
 
@@ -397,7 +408,7 @@ function newInnings() {
 function placeFielders(fromX, snap) {
   // Three kids spread out down the field ahead of the batter.
   const deep = st.rounds * 1.2;
-  const spots = [[8, 13], [16, 23], [26, 34]].map(([a, b]) => fromX + rand(a, b) + deep);
+  const spots = [[7, 12], [17, 24], [30, 40]].map(([a, b]) => fromX + rand(a, b) + deep);
   if (!st.fielders.length) {
     st.fielders = spots.map((x, i) => ({ x, home: x, target: x, t: 0, catching: 0, arm: rand(...THROW_ARM),
       shirt: ["#2e7d32", "#1565c0", "#ef6c00"][i], skin: ["#a86b45", "#c68a5e", "#8d5a3b"][i] }));
@@ -461,7 +472,7 @@ function launch(power) {
   const speed = lerp(LAUNCH_SPEED[0], LAUNCH_SPEED[1], power) * rand(0.95, 1.05);
   const angle = rand(LAUNCH_ANGLE[0], LAUNCH_ANGLE[1]) * Math.PI / 180;
   b.vx = Math.cos(angle) * speed; b.vy = Math.sin(angle) * speed; b.spin = rand(14, 20); b.drag = true;
-  st.hitSpeed = speed;
+  st.hitSpeed = speed; st.hitAngle = angle * 180 / Math.PI;
   st.swingT = now; st.swingPower = power;
   st.phase = "launchFlight";
   Sound.crack(0.5);
@@ -470,26 +481,40 @@ function launch(power) {
 }
 
 function fieldersChase() {
-  // Each kid guesses where it will come down (not perfectly) and runs after a moment.
-  const landX = predictLanding(st.biyo);
-  for (const f of st.fielders) {
-    const err = MISJUDGE + MISJUDGE_PER_M * Math.abs(landX - f.x);
-    f.target = landX + rand(-err, err);
+  // The nearest kid runs for it, the next one backs up halfway, the far one shuffles a little.
+  // Each starts with a rough guess and corrects it as the biyo comes down.
+  st.landX = predictLanding(st.biyo, HAND_HEIGHT);
+  const order = [...st.fielders].sort((a, b) => Math.abs(a.x - st.landX) - Math.abs(b.x - st.landX));
+  order.forEach((f, rank) => {
+    const err = MISJUDGE + MISJUDGE_PER_M * Math.abs(st.landX - f.x);
+    f.err = rand(-err, err);
+    f.share = [1, 0.5, 0.15][rank];          // how far toward the landing spot this kid goes
+    f.start = f.x;
     f.t = -rand(...FIELDER_REACTION);
     f.tried = false;
-  }
+    f.lastDx = undefined;
+    f.arrivedAt = null;
+    f.target = f.x;
+  });
+}
+
+function chaseTarget(f) {
+  const guess = st.landX + f.err * Math.exp(-Math.max(0, f.t) / READ_TIME);
+  return lerp(f.start, guess, f.share);
 }
 
 function tryCatch(f) {
-  // One attempt per fielder per hit; hard, flat hits and fingertip catches often get dropped.
+  // One attempt per fielder per hit. A kid waiting underneath usually holds on; a kid still
+  // running, a hard flat hit, or a fingertip stretch often ends with a fumble.
   const b = st.biyo;
   f.tried = true;
-  let chance = CATCH_CHANCE;
-  if ((st.hitSpeed || 0) > HARD_HIT_SPEED) chance *= HARD_HIT_FACTOR;
+  let chance = f.arrivedAt === null ? CATCH_RUNNING : now - f.arrivedAt >= SETTLE_TIME ? CATCH_SETTLED : CATCH_ARRIVING;
+  if ((st.hitSpeed || 0) > HARD_HIT_SPEED && (st.hitAngle || 0) < HARD_HIT_ANGLE) chance *= HARD_HIT_FACTOR;
   if (Math.abs(b.x - f.x) > CATCH_REACH * 0.5) chance *= 0.75;
   if (Math.random() < chance) { caught(f); return true; }
   st.drops = (st.drops || 0) + 1;
-  b.vx *= 0.3; b.vy = Math.abs(b.vy) * 0.25 + 1;           // it pops out of their hands
+  b.x = lerp(b.x, f.x, 0.6); b.y = Math.max(b.y, 1.1);       // it reaches the kid's hands...
+  b.vx = b.vx * 0.15 + rand(-1, 1); b.vy = rand(0.5, 1.5);  // ...and bobbles out of them
   Sound.whiff();
   floater("छुट्यो!", f.x, 2.6, "#fff");
   return false;
@@ -506,10 +531,11 @@ function startFetch() {
 function throwBack() {
   const b = st.biyo, f = st.thrower;
   b.x = f.x - 0.2; b.y = 1.3; b.drag = false; b.spin = rand(8, 12);
-  const err = (THROW_ERROR + THROW_ERROR_PER_M * Math.abs(b.x - HOLE_X)) * f.arm * rand(...THROW_LUCK);
+  let err = (THROW_ERROR + THROW_ERROR_PER_M * Math.abs(b.x - HOLE_X)) * f.arm * rand(...THROW_LUCK);
+  if (Math.random() < WILD_THROW_CHANCE) err *= WILD_THROW_FACTOR;
   const aim = HOLE_X + rand(-err, err);
-  // speed that lands it on `aim` from 1.3 m up at THROW_ANGLE (no drag on the throw)
-  const R = Math.max(1.5, b.x - aim), th = THROW_ANGLE * Math.PI / 180, c = Math.cos(th);
+  // speed that lands it on `aim` from 1.3 m up at this throw's angle (no drag on the throw)
+  const R = Math.max(1.5, b.x - aim), th = rand(...THROW_ANGLE) * Math.PI / 180, c = Math.cos(th);
   const v = Math.sqrt(GRAVITY * R * R / (2 * c * c * (R * Math.tan(th) + 1.3)));
   b.vx = -v * c; b.vy = v * Math.sin(th);
   st.swungBack = false;
@@ -523,8 +549,8 @@ function batBack() {
   st.swungBack = true;
   st.swingT = now; st.swingPower = 0.8;
   Sound.whoosh();
-  const b = st.biyo;
-  const inZone = b.x > HOLE_X - 0.3 && b.x < HOLE_X + 1.4 && b.y > 0.1 && b.y < 1.9;
+  const b = st.biyo, p = contactAt(b);
+  const inZone = p.x > HOLE_X - 0.3 && p.x < HOLE_X + 1.4 && p.y > 0.1 && p.y < 1.9;
   if (!inZone) return;
   b.vx = rand(...BAT_AWAY_SPEED); b.vy = rand(2.5, 4); b.drag = true; b.spin = rand(12, 18);
   st.phase = "batted";
@@ -564,14 +590,30 @@ function tipUp() {
   hintFor();
 }
 
-function inReach(b, lo = HIT_ZONE[0], hi = HIT_ZONE[1]) {
-  return b.y >= lo && b.y <= hi && Math.abs(b.x - reachX()) < 0.8;
+function contactAt(b) {
+  // where the biyo will be when the swinging dandi gets there
+  const t = SWING_DELAY;
+  return { x: b.x + b.vx * t, y: b.y + b.vy * t - 0.5 * GRAVITY * t * t };
+}
+
+function contactChance(y) {
+  // certain in the middle of the reach, fading smoothly toward the top and bottom (no hard edge)
+  const [lo, hi] = CONTACT, [slo, shi] = SURE_CONTACT;
+  if (y < lo || y > hi) return 0;
+  if (y >= slo && y <= shi) return 1;
+  const t = y > shi ? (y - shi) / (hi - shi) : (slo - y) / (slo - lo);
+  return lerp(1, EDGE_CONTACT, t);
+}
+
+function connects(b) {
+  const p = contactAt(b);
+  return Math.abs(p.x - reachX()) < 0.8 && Math.random() < contactChance(p.y) ? p : null;
 }
 
 function juggle() {
   const b = st.biyo;
   st.swingT = now; st.swingPower = 0.3;
-  if (st.juggles >= MAX_JUGGLES || !inReach(b, 0.15, 1.9)) { Sound.whoosh(); return; }
+  if (st.juggles >= MAX_JUGGLES || !connects(b)) { Sound.whoosh(); return; }
   st.juggles += 1; st.hits += 1;
   b.vy = JUGGLE_SPEED * rand(0.9, 1.1); b.vx = rand(0.1, 0.5);
   Sound.pop();
@@ -582,11 +624,14 @@ function bigHit(power) {
   const b = st.biyo;
   st.swingT = now; st.swingPower = power;
   Sound.whoosh();
-  if (!inReach(b)) return;                    // swung and missed; it keeps falling
-  const [lo, hi] = HIT_ZONE;
+  const p = connects(b);
+  if (!p) return;                             // swung and missed; it keeps falling
+  const [lo, hi] = SURE_CONTACT;
   // d < 0: hit it low (late) -> flat/grounder; d > 0: hit it high (early) -> skied.
-  const d = b.y >= SWEET_SPOT ? (b.y - SWEET_SPOT) / (hi - SWEET_SPOT) : -(SWEET_SPOT - b.y) / (SWEET_SPOT - lo);
-  const quality = 1 - Math.pow(Math.abs(d), 1.4) * 0.55;
+  // Beyond the sure range (|d| > 1) it still connects sometimes, as a weak scuff or a pop-up.
+  const raw = p.y >= SWEET_SPOT ? (p.y - SWEET_SPOT) / (hi - SWEET_SPOT) : -(SWEET_SPOT - p.y) / (SWEET_SPOT - lo);
+  const d = clamp(raw, -1.4, 1.7);
+  const quality = Math.max(0.2, 1 - Math.pow(Math.abs(d), 1.4) * 0.55);
   let speed = lerp(HIT_SPEED[0], HIT_SPEED[1], power * quality) * rand(1 - HIT_SPREAD_SPEED, 1 + HIT_SPREAD_SPEED);
   let deg = BASE_ANGLE + d * ANGLE_SPREAD + rand(-HIT_SPREAD_ANGLE, HIT_SPREAD_ANGLE);
   if (Math.random() < EDGE_CHANCE) {
@@ -597,7 +642,7 @@ function bigHit(power) {
   }
   const angle = clamp(deg, 3, 80) * Math.PI / 180;
   b.vx = Math.cos(angle) * speed; b.vy = Math.sin(angle) * speed; b.spin = rand(18, 26);
-  st.hitSpeed = speed;
+  st.hitSpeed = speed; st.hitAngle = angle * 180 / Math.PI;
   st.hits += 1;
   st.phase = "strikeFlight";
   Sound.crack(quality);
@@ -662,9 +707,10 @@ function stepBiyo(b, dt) {
   b.rot += b.spin * dt;
 }
 
-function predictLanding(b0) {
+function predictLanding(b0, height = 0) {
+  // where the biyo comes down through `height` (0 = where it lands)
   const b = { ...b0 };
-  for (let i = 0; i < 3000 && b.y > 0; i++) stepBiyo(b, 1 / 120);
+  for (let i = 0; i < 3000 && !(b.y <= height && b.vy < 0) && b.y > 0; i++) stepBiyo(b, 1 / 120);
   return b.x;
 }
 
@@ -683,7 +729,11 @@ function update(dt) {
       const prevY = b.y;
       stepBiyo(b, dt);
       for (const f of st.fielders) {
-        if (!f.tried && f.t > 0 && b.vy < 0 && b.y < CATCH_HEIGHT && prevY >= b.y && b.y > 0.3 && Math.abs(b.x - f.x) < CATCH_REACH) {
+        const dx = Math.abs(b.x - f.x);
+        const inReachNow = !f.tried && f.t > 0 && b.vy < 0 && b.y < CATCH_HEIGHT && prevY >= b.y && b.y > 0.3 && dx < CATCH_REACH;
+        const closest = inReachNow && (b.y <= HAND_HEIGHT || dx >= (f.lastDx ?? Infinity));
+        f.lastDx = inReachNow ? dx : undefined;
+        if (closest) {
           if (tryCatch(f)) break;
         }
       }
@@ -745,7 +795,12 @@ function update(dt) {
   const flying = st.phase === "launchFlight" || st.phase === "strikeFlight";
   for (const f of st.fielders) {
     f.t += dt;
-    if (flying && f.t > 0) f.x += clamp(f.target - f.x, -st.fielderSpeed * dt, st.fielderSpeed * dt);
+    if (flying && f.t > 0) {
+      f.target = chaseTarget(f);
+      f.x += clamp(f.target - f.x, -st.fielderSpeed * dt, st.fielderSpeed * dt);
+      if (Math.abs(f.target - f.x) < 0.1) { if (f.arrivedAt === null) f.arrivedAt = now; }
+      else f.arrivedAt = null;
+    }
     else if (!flying && f !== st.thrower && !f.catching) f.x += clamp(f.home - f.x, -4 * dt, 4 * dt);
   }
   if (!["fetch", "aim"].includes(st.phase) && st.thrower && st.phase !== "incoming") {
