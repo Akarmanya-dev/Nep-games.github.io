@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Changa Chait</title>
+  <meta name="description" content="Dashain kite fight over the rooftops of Kathmandu. Pull, release, and shout चेट!">
+  <meta name="theme-color" content="#ffd21a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@600;800&family=Mukta:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* Same signboard system as the other games; the scene is a Dashain sky over Kathmandu. */
+    :root {
+      --ink: #10212b;
+      --muted: #3f5a67;
+      --sign: #ffd21a;
+      --sign-red: #d4001a;
+      --sign-black: #141414;
+      --paper: #fffdf6;
+      --sky: #6fb6e3;
+    }
+    * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--sky);
+      color: var(--ink);
+      font-family: "Mukta", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    .shop { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* --- signboard ----------------------------------------------------- */
+    .sign {
+      background: var(--sign);
+      border-bottom: 6px solid var(--sign-red);
+      box-shadow: 0 4px 0 rgba(0, 0, 0, .12);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+      position: relative; z-index: 2;
+    }
+    .sign .back { color: var(--sign-black); font-weight: 800; text-decoration: none; font-size: .95rem; }
+    .sign .board { text-align: center; line-height: 1.2; }
+    .sign .np {
+      display: block;
+      font-family: "Yatra One", "Mukta", sans-serif;
+      color: var(--sign-red);
+      font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, .15);
+    }
+    .sign .en {
+      display: block;
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      color: var(--sign-black);
+      font-size: clamp(.62rem, 2.3vw, .9rem);
+      letter-spacing: .12em; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .sign .tools { justify-self: end; display: flex; gap: 8px; }
+    .sign .round {
+      background: var(--sign-black); color: var(--sign);
+      border: 0; border-radius: 999px;
+      width: 36px; height: 36px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* --- stage --------------------------------------------------------- */
+    .stage { position: relative; flex: 1; min-height: 0; cursor: pointer; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+    .hud {
+      position: absolute; left: 0; right: 0; top: 10px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 0 16px; pointer-events: none;
+    }
+    .chip {
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      background: var(--sign-black); color: var(--sign);
+      padding: 2px 12px; border-radius: 8px; font-size: 1rem; white-space: nowrap;
+    }
+    .score {
+      position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
+      text-align: center; pointer-events: none; line-height: 1;
+    }
+    .score .n {
+      font-family: "Yatra One", sans-serif;
+      font-size: clamp(3rem, 10vh, 5.5rem);
+      color: #fff;
+      -webkit-text-stroke: 3px var(--sign-black);
+      paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .score .u { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1rem; color: var(--sign-black); background: var(--sign); padding: 0 10px; border-radius: 6px; }
+    .hint {
+      position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+      background: rgba(20, 20, 20, .82); color: var(--sign);
+      font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1rem;
+      padding: 6px 16px; border-radius: 999px; pointer-events: none;
+      white-space: nowrap; max-width: 94%; overflow: hidden; text-overflow: ellipsis;
+      transition: opacity .2s;
+    }
+    .hint.hide { opacity: 0; }
+
+    /* --- overlays ------------------------------------------------------ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(16, 33, 43, .5);
+      backdrop-filter: blur(3px);
+      display: grid; place-items: center;
+      padding: 16px;
+      z-index: 10;
+      touch-action: manipulation;
+      overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .signpanel {
+      width: 100%; max-width: 440px;
+      background: var(--sign);
+      border: 6px solid var(--sign-red);
+      outline: 3px solid var(--sign-black);
+      border-radius: 10px;
+      padding: 20px 22px 20px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
+    }
+    .signpanel h1 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 3rem; line-height: 1.05; }
+    .signpanel h2 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 2.1rem; line-height: 1.15; }
+    .signpanel .sub { font-family: "Baloo 2", sans-serif; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .85rem; }
+    .signpanel ol { text-align: left; margin: 12px 0 4px; padding-left: 1.3em; font-weight: 600; }
+    .signpanel li { margin: 5px 0; }
+    .signpanel .note { font-weight: 600; margin-top: 6px; }
+    .signpanel .big {
+      font-family: "Yatra One", sans-serif; font-size: 4.2rem; line-height: 1; margin: 6px 0 0;
+      color: #fff; -webkit-text-stroke: 3px var(--sign-black); paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .signpanel .record { display: inline-block; background: var(--sign-red); color: #fff; font-weight: 800; padding: 2px 12px; border-radius: 999px; margin-top: 6px; }
+    .signpanel .record[hidden] { display: none; }
+    .btn {
+      display: block; width: 100%;
+      margin-top: 12px; padding: 12px;
+      border: 0; border-radius: 10px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.2rem "Baloo 2", sans-serif;
+      cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+    }
+    .btn:active { box-shadow: none; transform: translateY(2px); }
+    .btn.secondary { background: var(--sign-black); color: var(--sign); }
+  </style>
+</head>
+<body>
+<div class="shop">
+  <header class="sign">
+    <a class="back" href="../../index.html">← खेलहरू</a>
+    <div class="board">
+      <span class="np">चङ्गा चेट</span>
+      <span class="en">Dashain kite fight</span>
+    </div>
+    <div class="tools">
+      <button class="round" id="mute" aria-label="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="hud">
+      <span class="chip" id="lives">चङ्गा ◆◆◆</span>
+      <span class="chip" id="wind">हावा →</span>
+      <span class="chip" id="bestChip">रेकर्ड: ०</span>
+    </div>
+    <div class="score"><div class="n" id="score">०</div><span class="u">चेट · kites cut</span></div>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="signpanel">
+    <h1>चङ्गा चेट</h1>
+    <div class="sub">Changa Chait · Dashain kite fight</div>
+    <ol>
+      <li><b>Hold = खिच (pull):</b> your kite darts where its nose points.</li>
+      <li><b>Let go = ढिल (release):</b> the kite spins and drifts with the wind, and string runs out of your लट्टाई.</li>
+      <li>Cross another kite's string to fight. <b>Higher</b> than them? Hold and pull. <b>Lower</b>? Let go.</li>
+      <li>Cut their string: <b>चेट!</b> Don't sink onto the rooftops and wires. You have 3 kites.</li>
+    </ol>
+    <p class="note">Laptop: hold Space or the mouse button</p>
+    <button class="btn" id="startBtn">उडाऔं · Fly</button>
+  </div>
+</div>
+
+<div class="overlay" id="resultScreen" hidden>
+  <div class="signpanel">
+    <h2 id="resultTitle"></h2>
+    <div class="big" id="resultScore"></div>
+    <p class="note" id="resultNote"></p>
+    <span class="record" id="newRecord" hidden>नयाँ रेकर्ड! New record!</span>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn secondary" id="againBtn">फेरि उडाऔं · Fly again</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Design knobs -- tweak these first. The world is 1000 units tall; its width
+// follows the screen, so laptops get a wider sky.
+// Fighting follows the real techniques: khench (pull the string in fast) wins
+// when your kite is higher; dheel (let string out) wins the long fight from below.
+// ============================================================================
+const LINE_MAX = 1100;             // string on your lattai (spool)
+const LINE_MIN = 90;               // you can't wind the kite all the way in
+const PULL_SPEED = 400;            // kite speed along its nose while you pull (units/s); the string
+                                   // follows it, so flying away uses up string from the lattai
+const PAYOUT_SPEED = 240;          // string running out while you let go
+const SLACK_MAX = 60;              // how much loose string can hang out at once
+const SPIN_SPEED = 3.2;            // radians/s the kite spins while the string is loose
+const SINK_SPEED = 35;             // a loose kite slowly loses height...
+const WIND_MAX = 75;               // ...and drifts with the wind (units/s)
+const ROOF_Y = 770;                // below this line the kite snags on wires and rooftops
+const START_KITES = 3;
+const SAW_RATE = 0.5;              // how fast touching strings wear each other through
+const PULL_SAW = { high: 1.25, level: 0.95, low: 0.55 };  // khench: strong only from above
+const DHEEL_SAW = 1.0;             // dheel: steady, works from anywhere while string runs out
+const FIGHT_LUCK = [0.7, 1.3];     // each string's luck for one whole fight (contact angle, uneven majha)
+const DRY_SAW = 0.15;              // letting go with an empty lattai barely saws at all
+const HEIGHT_EDGE = 40;            // this much higher (units) counts as "above" the other kite
+const TOUCH_GRACE = 0.5;           // strings stay engaged this long after they slide apart (s)
+const RESPAWN_SAFE = 2.5;          // a fresh kite can't be attacked for this long (s)
+const RIVAL_SHARP = [0.85, 1.0];   // rivals' majha sharpness (yours is 1.0)...
+const RIVAL_SHARP_STEP = 0.025;    // ...rising with every kite you cut
+const RIVAL_SKILL = [0.6, 0.92];   // odds a rival picks the right technique, start -> later
+const RIVAL_SPIN = 0.8;            // rivals spin a bit slower than you
+const SPAWN_DELAY = [3, 1.5];      // seconds before a new rival takes off, start -> later
+const RANKS = [[10, "आकाशको राजा", "King of the Dashain sky."], [5, "माझा मास्टर", "Sharp string, sharper hands."],
+               [2, "राम्रो उडायौ!", "Not bad at all."], [0, "अर्को दशैंमा!", "Next Dashain, for sure."]];
+
+// Real Kathmandu kite designs (names from the Kathmandu Post): Ambe has a heart in the middle,
+// Dibdibe is checkered, Pakhete has a different-colored edge, Sete is white, Nilchi blue, Rate red.
+const STYLES = {
+  ambe:    { base: "#ffd21a", mark: "#d4001a", kind: "heart" },     // yours
+  dibdibe: { base: "#ffffff", mark: "#2e7d32", kind: "check" },
+  pakhete: { base: "#ff7043", mark: "#5e35b1", kind: "edge" },
+  sete:    { base: "#fafafa", mark: "#bdbdbd", kind: "plain" },
+  nilchi:  { base: "#1e63c7", mark: "#0d3c7d", kind: "plain" },
+  rate:    { base: "#d81b3c", mark: "#7f0f22", kind: "plain" },
+};
+const RIVAL_STYLES = ["dibdibe", "pakhete", "sete", "nilchi", "rate"];
+
+const $ = id => document.getElementById(id);
+const toNep = n => String(n).replace(/\d/g, d => "०१२३४५६७८९"[d]);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+
+// ============================================================================
+// Sound: wind, the lattai clicking as string runs out, strings sawing, cheers
+// ============================================================================
+const Sound = {
+  ctx: null, muted: false, noise: null, wind: null, saw: null, lastClick: 0,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    const len = this.ctx.sampleRate;
+    this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.wind = this.loop("lowpass", 500);
+    this.saw = this.loop("bandpass", 3200);
+  },
+  loop(type, freq) {
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = this.ctx.createGain(); g.gain.value = 0;
+    src.connect(f).connect(g).connect(this.ctx.destination); src.start();
+    return { g, f };
+  },
+  level(node, v) { if (node) node.g.gain.setTargetAtTime(this.muted ? 0 : v, this.ctx.currentTime, 0.08); },
+  burst(dur, type, freq, vol, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.ctx.destination); src.start(t); src.stop(t + dur);
+  },
+  tone(f0, f1, dur, vol, type = "sine", delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur);
+  },
+  click() {   // the lattai ticking as it spins and lets string out
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (t - this.lastClick < 0.05) return;
+    this.lastClick = t;
+    this.burst(0.015, "highpass", 2500, 0.08);
+  },
+  pull() { this.burst(0.12, "bandpass", 900, 0.12); },
+  cheer() {   // the whole neighborhood shouting "chaaait!"
+    for (let i = 0; i < 7; i++) this.burst(0.25, "bandpass", 700 + i * 180, 0.12, i * 0.05);
+    this.tone(520, 880, 0.35, 0.08, "triangle", 0.05);
+  },
+  lose() { this.tone(500, 160, 0.6, 0.15, "sawtooth"); },
+  snag() { this.burst(0.2, "lowpass", 600, 0.3); this.tone(220, 110, 0.3, 0.12, "square"); },
+};
+
+// ============================================================================
+// Canvas and the static scene (sky, valley, Swayambhu, rooftops, wires)
+// ============================================================================
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const bg = document.createElement("canvas"), bgc = bg.getContext("2d");
+let scale = 1, dpr = 1, W = 600;
+let roofs = [];          // rooftops rivals can stand on: { x, y }
+let clouds = [];
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scale = r.height / 1000;
+  const oldW = W;
+  W = r.width / scale;
+  for (const c of [canvas, bg]) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  bgc.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  drawBackground();
+  if (game && oldW !== W) {
+    // keep everything on screen after a rotation / window resize
+    for (const k of allKites()) { k.x = clamp(k.x * W / oldW, 20, W - 20); }
+    if (game.player) game.player.anchor.x = W / 2;
+  }
+  if (!clouds.length) for (let i = 0; i < 5; i++) clouds.push({ x: rand(0, W), y: rand(80, 330), s: rand(0.6, 1.3) });
+}
+window.addEventListener("resize", resize);
+
+// stable pseudo-random value per index, so buildings keep their look
+const hash = k => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+
+function drawBackground() {
+  const c = bgc;
+  const sky = c.createLinearGradient(0, 0, 0, 700);
+  sky.addColorStop(0, "#3f97d6"); sky.addColorStop(1, "#bfe3f2");
+  c.fillStyle = sky; c.fillRect(0, 0, W, 1000);
+
+  // Himalaya far away, then the green valley rim
+  c.fillStyle = "#dfeef5";
+  c.beginPath(); c.moveTo(0, 600);
+  for (let x = -60, k = 0; x < W + 200; x += 170, k++) { c.lineTo(x + 85, 470 - hash(k) * 60); c.lineTo(x + 170, 560); }
+  c.lineTo(W, 600); c.fill();
+  c.fillStyle = "#7da77a";
+  c.beginPath(); c.moveTo(0, 700);
+  for (let x = -40, k = 0; x < W + 200; x += 140, k++) c.quadraticCurveTo(x + 70, 560 - hash(k + 9) * 40, x + 140, 600);
+  c.lineTo(W, 700); c.fill();
+
+  // Swayambhu on its hill: white dome, golden tower, prayer flags
+  const sx = W * 0.22, sy = 585;
+  c.fillStyle = "#5f8f5c"; c.beginPath(); c.ellipse(sx, sy + 30, 90, 45, 0, Math.PI, 0); c.fill();
+  c.fillStyle = "#f6f3ea"; c.beginPath(); c.arc(sx, sy, 22, Math.PI, 0); c.fill();
+  c.fillStyle = "#d4a017"; c.fillRect(sx - 7, sy - 32, 14, 12);
+  c.beginPath(); c.moveTo(sx - 9, sy - 32); c.lineTo(sx, sy - 58); c.lineTo(sx + 9, sy - 32); c.fill();
+  const flagColors = ["#1e63c7", "#fafafa", "#d81b3c", "#2e7d32", "#ffd21a"];
+  for (const dir of [-1, 1]) for (let i = 0; i < 6; i++) {
+    c.fillStyle = flagColors[i % 5];
+    c.fillRect(sx + dir * (10 + i * 9), sy - 48 + i * 7, 6, 5);
+  }
+
+  // a bamboo linge ping (Dashain swing) in an open field
+  const px = W * 0.72, py = 640;
+  c.strokeStyle = "#8d6e3f"; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(px - 30, py + 40); c.lineTo(px, py - 70); c.lineTo(px + 30, py + 40); c.stroke();
+  c.lineWidth = 1.5; c.beginPath(); c.moveTo(px, py - 70); c.lineTo(px - 6, py + 15); c.moveTo(px, py - 70); c.lineTo(px + 6, py + 15); c.stroke();
+
+  // the city: rows of rooftops getting closer
+  roofs = [];
+  const colors = ["#b5533c", "#a44a35", "#e8c9a4", "#f2b8c6", "#f7e08a", "#9fc7e0", "#e9e2d0"];
+  for (const [row, base, hMin, hMax, wMin, wMax] of [[0, 700, 20, 60, 50, 90], [1, 760, 30, 90, 70, 120], [2, 840, 30, 110, 90, 150]]) {
+    let x = -20, k = row * 100;
+    while (x < W + 20) {
+      const w = wMin + hash(k) * (wMax - wMin), h = hMin + hash(k + 50) * (hMax - hMin);
+      const top = base - h;
+      const col = colors[Math.floor(hash(k + 7) * colors.length)];
+      c.fillStyle = col; c.fillRect(x, top, w - 2, 1000 - top);
+      c.fillStyle = "rgba(0,0,0,.12)"; c.fillRect(x, top, w - 2, 5);
+      // windows
+      c.fillStyle = row === 2 ? "#3e2723" : "rgba(40,30,25,.55)";
+      for (let wy = top + 18; wy < 1000; wy += 34) for (let wx = x + 10; wx < x + w - 16; wx += 24) c.fillRect(wx, wy, 10, 14);
+      // rooftop clutter: black water tank or bare rods of an unfinished floor
+      if (hash(k + 3) < 0.45) { c.fillStyle = "#1b1b1b"; c.fillRect(x + w * 0.6, top - 16, 18, 16); c.fillRect(x + w * 0.6 - 2, top - 18, 22, 4); }
+      else if (hash(k + 4) < 0.5) {
+        c.strokeStyle = "#5d4037"; c.lineWidth = 2;
+        for (let r = 0; r < 4; r++) { c.beginPath(); c.moveTo(x + 8 + r * 10, top); c.lineTo(x + 8 + r * 10, top - 14); c.stroke(); }
+      }
+      if (row >= 1 && Math.abs(x + w / 2 - W / 2) > 90) roofs.push({ x: x + w * 0.35, y: top });
+      x += w; k++;
+    }
+  }
+
+  // electric poles and the tangle of wires (the real enemy of every kite)
+  c.strokeStyle = "#2b2b2b"; c.lineWidth = 3;
+  const poles = [];
+  for (let x = 40; x < W + 200; x += 260) poles.push(x);
+  for (const x of poles) { c.fillStyle = "#6d6d6d"; c.fillRect(x - 4, ROOF_Y - 10, 8, 1000); }
+  c.lineWidth = 1.5;
+  for (let i = 0; i < poles.length - 1; i++) for (let j = 0; j < 4; j++) {
+    const a = poles[i], b = poles[i + 1], y0 = ROOF_Y - 5 + j * 9;
+    c.beginPath(); c.moveTo(a, y0); c.quadraticCurveTo((a + b) / 2, y0 + 26 + j * 3, b, y0); c.stroke();
+  }
+
+  // your own rooftop parapet at the bottom
+  c.fillStyle = "#8a8a8a"; c.fillRect(0, 935, W, 65);
+  c.fillStyle = "#a3a3a3"; c.fillRect(0, 935, W, 8);
+}
+
+// ============================================================================
+// Kites: shared physics for you and the rivals
+// ============================================================================
+let game = null;
+let now = 0;
+let holding = false;
+
+function makeKite(anchor, style, isPlayer) {
+  return {
+    id: Math.random(), isPlayer, style, anchor,
+    x: anchor.x + rand(-30, 30), y: anchor.y - 180, th: rand(-0.3, 0.3),
+    L: 200, pulling: false, spinDir: 1,
+    state: "fly",              // fly | falling | snagged
+    vx: 0, vy: 0, safeUntil: now + (isPlayer ? RESPAWN_SAFE : 0),
+    // rivals
+    sharp: 1, skill: 1, mode: "patrol", modeUntil: 0, think: 0, tx: 0, ty: 0, tech: "dheel", techUntil: 0,
+  };
+}
+
+function playerKite(anchor) {
+  // a fresh kite starts well up in the sky with enough string out to hold it there
+  const k = makeKite(anchor, "ambe", true);
+  k.x = anchor.x + rand(-40, 40); k.y = 520; k.th = rand(-0.3, 0.3);
+  k.L = Math.hypot(k.x - anchor.x, k.y - anchor.y) + 10;
+  return k;
+}
+
+function allKites() { return game ? [game.player, ...game.rivals].filter(Boolean) : []; }
+
+function stepKite(k, dt) {
+  const hx = Math.sin(k.th), hy = -Math.cos(k.th);
+  const d0 = Math.hypot(k.x - k.anchor.x, k.y - k.anchor.y);
+  if (k.pulling) {
+    // khench: dart along the nose, winding string in
+    k.vx = hx * PULL_SPEED + game.wind * 0.3;
+    k.vy = hy * PULL_SPEED;
+    k.th += Math.sin(now * 9 + k.id * 50) * 0.15 * dt;
+  } else {
+    // dheel: the kite spins and drifts, string runs out
+    k.th += k.spinDir * SPIN_SPEED * (k.isPlayer ? 1 : RIVAL_SPIN) * dt;
+    k.vx = game.wind; k.vy = SINK_SPEED;
+    const before = k.L;
+    k.L = Math.min(LINE_MAX, Math.min(k.L + PAYOUT_SPEED * dt, d0 + SLACK_MAX));
+    k.paying = k.L > before + 0.01;
+  }
+  if (k.pulling) k.paying = false;
+  k.x += k.vx * dt; k.y += k.vy * dt;
+  // while you pull, the string follows the kite (up to what's left on the lattai)
+  if (k.pulling) k.L = clamp(Math.hypot(k.x - k.anchor.x, k.y - k.anchor.y), LINE_MIN, LINE_MAX);
+  // the string holds the kite at most L away from the hands
+  const dx = k.x - k.anchor.x, dy = k.y - k.anchor.y, d = Math.hypot(dx, dy);
+  if (d > k.L) { k.x = k.anchor.x + dx / d * k.L; k.y = k.anchor.y + dy / d * k.L; }
+  k.x = clamp(k.x, 20, W - 20);
+  k.y = Math.max(k.y, 30);
+  if (k.y > ROOF_Y) snag(k);
+}
+
+// ============================================================================
+// Rivals: kids on the neighboring rooftops
+// ============================================================================
+function spawnRival() {
+  const spots = roofs.filter(r => !game.rivals.some(o => Math.abs(o.anchor.x - r.x) < 60));
+  if (!spots.length) return;
+  const spot = spots[Math.floor(Math.random() * spots.length)];
+  const cut = game.score;
+  const style = RIVAL_STYLES[Math.floor(Math.random() * RIVAL_STYLES.length)];
+  const r = makeKite({ x: spot.x, y: spot.y - 22 }, style, false);
+  r.sharp = rand(...RIVAL_SHARP) + cut * RIVAL_SHARP_STEP;
+  r.skill = Math.min(RIVAL_SKILL[1], RIVAL_SKILL[0] + cut * 0.03);
+  r.mode = "patrol"; r.modeUntil = now + rand(2, 4);
+  game.rivals.push(r);
+}
+
+function maxRivals() { return Math.min(3, 1 + Math.floor(game.score / 3)); }
+
+function decideRival(r) {
+  const p = game.player;
+  const e = game.fights.get(r.id);
+  let tx, ty;
+  if (r.y > ROOF_Y - 150) { tx = r.x; ty = r.y - 300; }                    // climb away from the wires
+  else if (e && now - e.last < TOUCH_GRACE && p && p.state === "fly") {
+    // in a fight: pick a technique (the better one, most of the time)
+    if (now > r.techUntil) {
+      r.techUntil = now + rand(0.4, 0.8);
+      const higher = r.y < p.y - HEIGHT_EDGE;
+      const smart = Math.random() < r.skill;
+      r.tech = higher === smart ? "pull" : "dheel";
+    }
+    r.pulling = r.tech === "pull" && Math.cos(r.th) > -0.2;               // don't pull it into a dive
+    return;
+  } else {
+    if (now > r.modeUntil) {
+      r.mode = r.mode === "patrol" ? "hunt" : "patrol";
+      r.modeUntil = now + (r.mode === "hunt" ? rand(4, 7) : rand(1.5, 3));
+      r.tx = rand(60, W - 60); r.ty = rand(150, 480);
+    }
+    if (r.mode === "hunt" && p && p.state === "fly" && now > p.safeUntil) {
+      // aim for a point on the far side of your string, so the strings cross
+      const f = rand(0.45, 0.75);
+      const qx = lerp(p.anchor.x, p.x, f), qy = lerp(p.anchor.y, p.y, f);
+      let nx = -(p.y - p.anchor.y), ny = p.x - p.anchor.x;
+      const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+      const side = Math.sign((r.anchor.x - qx) * nx + (r.anchor.y - qy) * ny) || 1;
+      tx = qx - side * nx * 140; ty = Math.min(qy - side * ny * 140, ROOF_Y - 220);
+    } else { tx = r.tx; ty = r.ty; }
+  }
+  const want = Math.atan2(tx - r.x, -(ty - r.y));
+  const diff = angDiff(want, r.th);
+  r.spinDir = diff > 0 ? 1 : -1;
+  r.pulling = Math.abs(diff) < 0.35 && Math.hypot(tx - r.x, ty - r.y) > 40 && r.L > LINE_MIN + 60;
+}
+
+// ============================================================================
+// Fights: touching strings saw at each other
+// ============================================================================
+function segIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+  const r1x = bx - ax, r1y = by - ay, r2x = dx - cx, r2y = dy - cy;
+  const den = r1x * r2y - r1y * r2x;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((cx - ax) * r2y - (cy - ay) * r2x) / den;
+  const u = ((cx - ax) * r1y - (cy - ay) * r1x) / den;
+  if (t <= 0.02 || t >= 0.98 || u <= 0.02 || u >= 0.98) return null;     // not at the hands or the kite itself
+  return { x: ax + t * r1x, y: ay + t * r1y };
+}
+
+function sawPower(k, other) {
+  if (k.pulling) {
+    if (k.y < other.y - HEIGHT_EDGE) return PULL_SAW.high;
+    if (k.y > other.y + HEIGHT_EDGE) return PULL_SAW.low;
+    return PULL_SAW.level;
+  }
+  return k.L < LINE_MAX - 1 ? DHEEL_SAW : DRY_SAW;
+}
+
+function updateFights(dt) {
+  const p = game.player;
+  let sawing = false;
+  for (const r of game.rivals) {
+    if (r.state !== "fly") continue;
+    let e = game.fights.get(r.id);
+    const canFight = p && p.state === "fly" && now > p.safeUntil;
+    const X = canFight ? segIntersect(p.anchor.x, p.anchor.y, p.x, p.y, r.anchor.x, r.anchor.y, r.x, r.y) : null;
+    if (X) {
+      if (!e) {
+        e = { dmgP: 0, dmgR: 0, last: now, x: X.x, y: X.y, luckP: rand(...FIGHT_LUCK), luckR: rand(...FIGHT_LUCK) };
+        game.fights.set(r.id, e); game.fightsSeen += 1;
+      }
+      e.last = now; e.x = X.x; e.y = X.y;
+    }
+    if (!e) continue;
+    if (now - e.last < TOUCH_GRACE && canFight) {
+      sawing = true;
+      e.dmgR += SAW_RATE * sawPower(p, r) * e.luckP * rand(0.85, 1.15) * dt;            // your string cutting theirs
+      e.dmgP += SAW_RATE * sawPower(r, p) * r.sharp * e.luckR * rand(0.85, 1.15) * dt;  // theirs cutting yours
+      if (Math.random() < dt * 30) spark(e.x, e.y);
+      if (e.dmgR >= 1 || e.dmgP >= 1) {
+        game.fights.delete(r.id);
+        if (e.dmgR >= e.dmgP) cutKite(r, e.x, e.y); else cutKite(p, e.x, e.y);
+      }
+    } else {
+      e.dmgP = Math.max(0, e.dmgP - 0.4 * dt); e.dmgR = Math.max(0, e.dmgR - 0.4 * dt);
+      if (e.dmgP === 0 && e.dmgR === 0) game.fights.delete(r.id);
+    }
+  }
+  Sound.level(Sound.saw, sawing ? 0.09 : 0);
+}
+
+function cutKite(k, x, y) {
+  // the string snaps at (x, y): the kite floats away with a tail of string, the rest falls
+  k.state = "falling";
+  k.cutX = x; k.cutY = y;
+  k.dangle = Math.min(160, Math.hypot(k.x - x, k.y - y));
+  k.vx = game.wind * 1.2 + rand(-20, 20); k.vy = rand(25, 45); k.fallSpin = rand(-1.5, 1.5);
+  k.loose = { ax: k.anchor.x, ay: k.anchor.y, x, y, t: 0 };     // the piece left in the flier's hands
+  floater("चेट!", x, y - 30, k.isPlayer ? "#fff" : "#ffd21a", true);
+  game.fights.forEach((e, id) => { if (id === k.id) game.fights.delete(id); });
+  if (k.isPlayer) loseKite("Your string was cut");
+  else {
+    game.score += 1;
+    updateHud();
+    Sound.cheer();
+    if (navigator.vibrate) navigator.vibrate([30, 30, 60]);
+    game.nextSpawn = now + lerp(SPAWN_DELAY[0], SPAWN_DELAY[1], Math.min(1, game.score / 10));
+  }
+}
+
+function snag(k) {
+  if (k.state !== "fly") return;
+  k.state = "snagged"; k.y = ROOF_Y; k.snagT = now;
+  Sound.snag();
+  game.fights.delete(k.id);
+  if (k.isPlayer) { floater("तारमा अड्कियो!", k.x, ROOF_Y - 60, "#fff", true); loseKite("Snagged on the wires"); }
+  else game.nextSpawn = Math.max(game.nextSpawn, now + 1.5);
+}
+
+function loseKite(reason) {
+  game.lives -= 1;
+  game.lastLoss = reason;
+  game.fights.clear();
+  updateHud();
+  Sound.lose();
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  if (game.lives <= 0) { setTimeout(endGame, 1600); return; }
+  setTimeout(() => {
+    if (!game || game.over) return;
+    game.player = playerKite(game.player.anchor);
+    game.player.pulling = holding;
+    setHint("नयाँ चङ्गा! New kite");
+  }, 1600);
+}
+
+// ============================================================================
+// Update
+// ============================================================================
+let sparks = [], floaters = [];
+function spark(x, y) { sparks.push({ x, y, vx: rand(-60, 60), vy: rand(-80, 20), t: 0 }); }
+function floater(text, x, y, color, big) { floaters.push({ text, x, y, color, big, t: 0 }); }
+
+function update(dt) {
+  now += dt;
+  for (const cl of clouds) { cl.x += (game ? game.wind : 20) * 0.15 * dt; if (cl.x > W + 150) cl.x = -150; if (cl.x < -150) cl.x = W + 150; }
+  sparks.forEach(s => { s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 200 * dt; });
+  sparks = sparks.filter(s => s.t < 0.4);
+  floaters.forEach(f => { f.t += dt; f.y -= 40 * dt; });
+  floaters = floaters.filter(f => f.t < (f.big ? 1.5 : 1.1));
+  if (!game || game.over) return;
+
+  // wind: a slow drift with gusts
+  game.windT += dt;
+  if (game.windT > game.windNext) {
+    game.windT = 0; game.windNext = rand(3, 7);
+    game.windTarget = rand(-WIND_MAX, WIND_MAX);
+  }
+  game.wind = lerp(game.wind, game.windTarget, 1 - Math.exp(-dt * 0.8));
+
+  const p = game.player;
+  if (p.state === "fly") {
+    if (holding && !p.pulling) Sound.pull();
+    if (!holding && p.pulling) p.spinDir = game.wind >= 0 ? 1 : -1;      // a loose kite turns with the wind
+    p.pulling = holding;
+    stepKite(p, dt);
+    if (p.paying) Sound.click();
+  }
+
+  for (const r of game.rivals) {
+    if (r.state !== "fly") continue;
+    r.think -= dt;
+    if (r.think <= 0) { r.think = rand(0.1, 0.18); decideRival(r); }
+    stepKite(r, dt);
+  }
+
+  // cut and snagged kites drift down and away
+  for (const k of [...game.rivals, game.player]) {
+    if (k.state === "falling") {
+      k.x += (k.vx + Math.sin(now * 3 + k.id * 9) * 30) * dt; k.y += k.vy * dt; k.th += k.fallSpin * dt;
+      k.loose.t += dt;
+    }
+  }
+  game.rivals = game.rivals.filter(r => !(r.state === "falling" && (r.y > 1050 || r.x < -100 || r.x > W + 100)) && !(r.state === "snagged" && now - r.snagT > 2.5));
+
+  updateFights(dt);
+
+  if (game.rivals.filter(r => r.state === "fly").length < maxRivals() && now > game.nextSpawn) {
+    spawnRival();
+    game.nextSpawn = now + 1;
+  }
+
+  // teach the two techniques during the first fights
+  const e = p.state === "fly" ? [...game.fights.entries()].find(([, f]) => now - f.last < TOUCH_GRACE) : null;
+  if (e && game.fightsSeen <= 4) {
+    const r = game.rivals.find(k => k.id === e[0]);
+    if (r) setHint(p.y < r.y - HEIGHT_EDGE ? "You're higher: hold to pull (खिच)!" : p.y > r.y + HEIGHT_EDGE ? "You're lower: let go (ढिल)!" : "Level: either works");
+  } else if (game.introUntil > now) setHint("Let go: it spins · Hold: it flies where it points");
+  else setHint("");
+
+  Sound.level(Sound.wind, 0.03 + Math.abs(game.wind) / WIND_MAX * 0.05);
+  $("wind").textContent = `हावा ${game.wind >= 0 ? "→" : "←"}${Math.abs(game.wind) > WIND_MAX * 0.6 ? (game.wind >= 0 ? "→" : "←") : ""}`;
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+function drawKite(x, y, th, style, alpha = 1) {
+  const s = STYLES[style];
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y); ctx.rotate(th);
+  const diamond = () => { ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(23, -4); ctx.lineTo(0, 26); ctx.lineTo(-23, -4); ctx.closePath(); };
+  // tail (puchhar)
+  ctx.fillStyle = s.mark;
+  ctx.beginPath(); ctx.moveTo(0, 22); ctx.lineTo(-8, 40); ctx.lineTo(8, 40); ctx.closePath(); ctx.fill();
+  diamond(); ctx.fillStyle = s.base; ctx.fill();
+  ctx.save(); diamond(); ctx.clip();
+  ctx.fillStyle = s.mark;
+  if (s.kind === "heart") {
+    ctx.beginPath(); ctx.arc(-5, -6, 6, 0, Math.PI * 2); ctx.arc(5, -6, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-11, -4); ctx.lineTo(0, 10); ctx.lineTo(11, -4); ctx.fill();
+  } else if (s.kind === "check") {
+    for (let i = -4; i < 4; i++) for (let j = -5; j < 4; j++) if ((i + j) % 2 === 0) ctx.fillRect(i * 7, j * 7, 7, 7);
+  } else if (s.kind === "edge") {
+    ctx.lineWidth = 12; ctx.strokeStyle = s.mark; diamond(); ctx.stroke();
+  }
+  ctx.restore();
+  diamond(); ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 1.5; ctx.stroke();
+  // spine and bow
+  ctx.strokeStyle = "rgba(60,40,20,.7)"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(0, 26); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-23, -4); ctx.quadraticCurveTo(0, -20, 23, -4); ctx.stroke();
+  ctx.restore();
+}
+
+function drawString(ax, ay, x, y, L, color) {
+  const d = Math.hypot(x - ax, y - ay);
+  const sag = Math.min(90, Math.max(0, L - d) * 0.8) + d * 0.04;
+  ctx.strokeStyle = color; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + x) / 2, (ay + y) / 2 + sag, x, y); ctx.stroke();
+}
+
+function drawFlier(ax, ay, color) {
+  // a small kid on a rooftop holding a lattai
+  ctx.fillStyle = color; ctx.fillRect(ax - 5, ay + 2, 10, 16);
+  ctx.fillStyle = "#a86b45"; ctx.beginPath(); ctx.arc(ax, ay - 4, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#141414"; ctx.beginPath(); ctx.arc(ax, ay - 6, 5, Math.PI, 0); ctx.fill();
+}
+
+function drawLattai(p) {
+  // your hands and spool at the bottom of the screen; the string band shrinks as it runs out
+  const x = p.anchor.x, y = p.anchor.y + 14;
+  const left = 1 - (p.L - LINE_MIN) / (LINE_MAX - LINE_MIN);
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "#b97a52";
+  ctx.beginPath(); ctx.ellipse(-46, 6, 13, 10, 0, 0, Math.PI * 2); ctx.ellipse(46, 6, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#8d6e3f"; ctx.fillRect(-58, 2, 116, 8);                         // handle
+  ctx.fillStyle = "#6d4c2f"; ctx.fillRect(-30, -16, 8, 36); ctx.fillRect(22, -16, 8, 36);   // spool ends
+  const band = 6 + 22 * clamp(left, 0, 1);
+  ctx.fillStyle = "#f4ede0"; ctx.fillRect(-22, -band / 2 + 2, 44, band);          // wound string
+  ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 1;
+  const roll = (now * (p.paying ? 30 : p.pulling ? -20 : 0)) % 8;
+  for (let i = -22 + roll; i < 22; i += 8) { ctx.beginPath(); ctx.moveTo(i, -band / 2 + 2); ctx.lineTo(i + 3, band / 2 + 2); ctx.stroke(); }
+  ctx.restore();
+}
+
+function draw() {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0); ctx.restore();
+  // drifting clouds
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  for (const cl of clouds) {
+    ctx.beginPath();
+    ctx.ellipse(cl.x, cl.y, 60 * cl.s, 18 * cl.s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cl.x + 30 * cl.s, cl.y - 12 * cl.s, 34 * cl.s, 18 * cl.s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (!game) { drawKite(W / 2, 380, Math.sin(now) * 0.3, "ambe"); return; }
+
+  // rivals: flier, string, kite
+  for (const r of game.rivals) {
+    const col = STYLES[r.style].base;
+    drawFlier(r.anchor.x, r.anchor.y, STYLES[r.style].mark);
+    if (r.state === "fly" || r.state === "snagged") drawString(r.anchor.x, r.anchor.y, r.x, r.y, r.L, "rgba(255,255,255,.75)");
+    drawCut(r);
+    drawKite(r.x, r.y, r.th, r.style, r.state === "snagged" ? 0.7 : 1);
+    if (r.state === "fly") { ctx.fillStyle = col; }
+  }
+  const p = game.player;
+  if (p.state === "fly" || p.state === "snagged") drawString(p.anchor.x, p.anchor.y, p.x, p.y, p.L, "rgba(255, 236, 160, .95)");
+  drawCut(p);
+  const blink = p.state === "fly" && now < p.safeUntil && Math.floor(now * 8) % 2 === 0;
+  drawKite(p.x, p.y, p.th, "ambe", blink ? 0.45 : 1);
+  drawLattai(p);
+
+  // string health bars at each crossing
+  for (const [id, e] of game.fights) {
+    if (now - e.last > TOUCH_GRACE) continue;
+    const r = game.rivals.find(k => k.id === id);
+    if (!r) continue;
+    const bw = 70, y0 = e.y - 34;
+    for (const [i, dmg, color] of [[0, e.dmgP, "#ffd21a"], [1, e.dmgR, STYLES[r.style].base]]) {
+      const y = y0 + i * 11;
+      ctx.fillStyle = "rgba(20,20,20,.8)"; ctx.fillRect(e.x - bw / 2 - 2, y - 2, bw + 4, 9);
+      ctx.fillStyle = color; ctx.fillRect(e.x - bw / 2, y, bw * clamp(1 - dmg, 0, 1), 5);
+    }
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(e.x, e.y, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // sparks where majha grinds on majha
+  ctx.fillStyle = "#fff6c0";
+  for (const s of sparks) ctx.fillRect(s.x, s.y, 3, 3);
+
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const f of floaters) {
+    ctx.globalAlpha = clamp(1 - f.t / (f.big ? 1.5 : 1.1), 0, 1);
+    ctx.font = `${f.big ? 64 : 34}px "Yatra One", sans-serif`;
+    ctx.lineWidth = f.big ? 9 : 6; ctx.strokeStyle = "#141414";
+    const x = clamp(f.x, 120, W - 120);
+    ctx.strokeText(f.text, x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCut(k) {
+  if (k.state !== "falling") return;
+  // the kite floats off trailing a piece of string...
+  ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(k.x, k.y);
+  ctx.quadraticCurveTo(k.x - 20, k.y + k.dangle * 0.5, k.x - 10 + Math.sin(now * 4) * 15, k.y + k.dangle); ctx.stroke();
+  // ...and the rest of the string drops back toward the flier's hands
+  const l = k.loose;
+  if (l.t < 1.2) {
+    ctx.globalAlpha = 1 - l.t / 1.2;
+    ctx.beginPath(); ctx.moveTo(l.ax, l.ay); ctx.quadraticCurveTo((l.ax + l.x) / 2, (l.ay + l.y) / 2 + 60 + l.t * 200, l.x, l.y + l.t * 300); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+let lastT = performance.now();
+function frame(t) {
+  const dt = Math.min((t - lastT) / 1000, 1 / 30);
+  lastT = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Input: hold = pull (khench), let go = release (dheel)
+// ============================================================================
+const stage = $("stage");
+let activePointer = null;
+stage.addEventListener("pointerdown", e => {
+  if (activePointer !== null) return;
+  Sound.init();
+  activePointer = e.pointerId;
+  stage.setPointerCapture(e.pointerId);
+  holding = true;
+});
+function pointerUp(e) {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  holding = keyHeld;
+}
+stage.addEventListener("pointerup", pointerUp);
+stage.addEventListener("pointercancel", pointerUp);
+let keyHeld = false;
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat) return;
+  if (!$("startScreen").hidden || !$("resultScreen").hidden) return;
+  e.preventDefault(); Sound.init(); keyHeld = true; holding = true;
+});
+window.addEventListener("keyup", e => {
+  if (e.code !== "Space") return;
+  e.preventDefault(); keyHeld = false; holding = activePointer !== null;
+});
+
+// ============================================================================
+// Flow
+// ============================================================================
+let best = store.get("changa.best", 0);
+
+function setHint(text) {
+  const el = $("hint");
+  if (!text) { el.classList.add("hide"); return; }
+  if (el.textContent !== text) el.textContent = text;
+  el.classList.remove("hide");
+}
+
+function updateHud() {
+  const lives = game ? game.lives : START_KITES;
+  $("lives").textContent = `चङ्गा ${"◆".repeat(Math.max(lives, 0))}${"◇".repeat(START_KITES - Math.max(lives, 0))}`;
+  $("score").textContent = toNep(game ? game.score : 0);
+  $("bestChip").textContent = `रेकर्ड: ${toNep(best)}`;
+}
+
+function start() {
+  Sound.init();
+  $("startScreen").hidden = true;
+  $("resultScreen").hidden = true;
+  holding = false; keyHeld = false; activePointer = null;
+  game = {
+    player: null, rivals: [], fights: new Map(), fightsSeen: 0,
+    score: 0, lives: START_KITES, over: false, lastLoss: "",
+    wind: rand(20, 45), windTarget: rand(20, 45), windT: 0, windNext: 5,
+    nextSpawn: now + 2.5, introUntil: now + 6,
+  };
+  game.player = playerKite({ x: W / 2, y: 905 });
+  updateHud();
+}
+
+function endGame() {
+  if (!game || game.over) return;
+  game.over = true;
+  Sound.level(Sound.saw, 0);
+  const newRecord = game.score > best;
+  if (newRecord) { best = game.score; store.set("changa.best", best); }
+  updateHud();
+  const [, title, line] = RANKS.find(([n]) => game.score >= n);
+  $("resultTitle").textContent = title;
+  $("resultScore").textContent = `${toNep(game.score)} चेट`;
+  $("resultNote").textContent = `${line} You cut ${game.score} kite${game.score === 1 ? "" : "s"}. Last kite: ${game.lastLoss.toLowerCase()}. Best ${best}.`;
+  $("newRecord").hidden = !newRecord || game.score === 0;
+  $("resultScreen").hidden = false;
+  setHint("");
+}
+
+function shareText() {
+  return `🪁 चङ्गा चेट: I cut ${toNep(game.score)} kites (${game.score}) this Dashain! Can you beat me?`;
+}
+
+$("startBtn").addEventListener("click", start);
+$("againBtn").addEventListener("click", start);
+$("shareBtn").addEventListener("click", async () => {
+  const text = shareText();
+  const url = location.href.split("#")[0];
+  try {
+    if (navigator.share) await navigator.share({ title: "Changa Chait", text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      $("shareBtn").textContent = "Copied!";
+      setTimeout(() => ($("shareBtn").textContent = "Share"), 1500);
+    }
+  } catch (_) { /* share cancelled */ }
+});
+$("mute").addEventListener("click", () => {
+  Sound.muted = !Sound.muted;
+  $("mute").textContent = Sound.muted ? "🔇" : "🔊";
+  if (Sound.ctx) { Sound.level(Sound.wind, 0); Sound.level(Sound.saw, 0); }
+});
+
+resize();
+document.fonts.ready.then(resize);
+updateHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
