@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Changa Chait</title>
-  <meta name="description" content="Dashain kite fight over the rooftops of Kathmandu. Pull, release, and shout चेट!">
+  <meta name="description" content="Dashain kite fight over the rooftops of Kathmandu. Pull, release, and shout चैट!">
   <meta name="theme-color" content="#ffd21a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -151,6 +151,24 @@
     }
     .btn:active { box-shadow: none; transform: translateY(2px); }
     .btn.secondary { background: var(--sign-black); color: var(--sign); }
+    .text-link {
+      display: block; width: 100%; margin-top: 10px; background: none; border: 0; cursor: pointer;
+      font: 800 1.05rem "Baloo 2", sans-serif; color: var(--sign-black); text-decoration: underline;
+    }
+    .signpanel.guide { max-width: 520px; max-height: calc(100dvh - 32px); overflow-y: auto; text-align: left; }
+    .guide h2, .guide .sub { text-align: center; }
+    .step {
+      display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 10px;
+      padding: 10px 12px; margin-top: 10px;
+    }
+    .step .pic { display: grid; place-items: center; min-height: 56px; }
+    .step b.cmd { font-family: "Yatra One", sans-serif; font-weight: 400; font-size: 1.25rem; color: var(--sign-red); }
+    .step p { margin: 2px 0 0; font-size: .95rem; line-height: 1.35; }
+    .step h3 { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.05rem; line-height: 1.2; }
+    .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .keys div { background: var(--sign-black); color: var(--sign); border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+    .keys b { display: block; font-family: "Baloo 2", sans-serif; }
   </style>
 </head>
 <body>
@@ -158,10 +176,11 @@
   <header class="sign">
     <a class="back" href="../../index.html">← खेलहरू</a>
     <div class="board">
-      <span class="np">चङ्गा चेट</span>
+      <span class="np">चङ्गा चैट</span>
       <span class="en">Dashain kite fight</span>
     </div>
     <div class="tools">
+      <button class="round" id="helpBtn" aria-label="How to play">?</button>
       <button class="round" id="mute" aria-label="Toggle sound">🔊</button>
     </div>
   </header>
@@ -173,23 +192,68 @@
       <span class="chip" id="wind">हावा →</span>
       <span class="chip" id="bestChip">रेकर्ड: ०</span>
     </div>
-    <div class="score"><div class="n" id="score">०</div><span class="u">चेट · kites cut</span></div>
+    <div class="score"><div class="n" id="score">०</div><span class="u">चैट · kites cut</span></div>
     <div class="hint" id="hint"></div>
   </div>
 </div>
 
 <div class="overlay" id="startScreen">
   <div class="signpanel">
-    <h1>चङ्गा चेट</h1>
+    <h1>चङ्गा चैट</h1>
     <div class="sub">Changa Chait · Dashain kite fight</div>
     <ol>
       <li><b>Hold = खिच (pull):</b> your kite darts where its nose points.</li>
       <li><b>Let go = ढिल (release):</b> the kite spins and drifts with the wind, and string runs out of your लट्टाई.</li>
       <li>Cross another kite's string to fight. <b>Higher</b> than them? Hold and pull. <b>Lower</b>? Let go.</li>
-      <li>Cut their string: <b>चेट!</b> Don't sink onto the rooftops and wires. You have 3 kites.</li>
+      <li>Cut their string: <b>चैट!</b> Don't sink onto the rooftops and wires. You have 3 kites.</li>
     </ol>
     <p class="note">Laptop: hold Space or the mouse button</p>
     <button class="btn" id="startBtn">उडाऔं · Fly</button>
+    <button class="text-link" id="howBtn">कसरी खेल्ने? · How to play</button>
+  </div>
+</div>
+
+<div class="overlay" id="howScreen" hidden>
+  <div class="signpanel guide">
+    <h2>कसरी खेल्ने?</h2>
+    <div class="sub">How to play</div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><circle cx="32" cy="22" r="14" fill="#d4001a" opacity=".25"/><circle cx="32" cy="22" r="7" fill="#d4001a"/><path d="M26 30 v16 a6 6 0 0 0 12 0 v-16" fill="#e0ac7d" stroke="#141414" stroke-width="2.5"/></svg></div>
+      <div><h3><b class="cmd">खिच</b> · Hold to pull</h3><p>Press and hold anywhere. Your kite <b>darts the way its nose points</b>.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M32 12 L44 26 L32 42 L20 26 Z" fill="#ffd21a" stroke="#141414" stroke-width="2"/><path d="M14 16 A22 22 0 0 1 50 14" fill="none" stroke="#141414" stroke-width="2.5"/><path d="M50 14 l-8 -1 l5 7 z" fill="#141414"/></svg></div>
+      <div><h3><b class="cmd">ढिल</b> · Let go to release</h3><p>The kite <b>spins slowly and drifts with the wind</b>, sinking a little, and string runs out of your लट्टाई (spool).</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M20 30 L28 40 L20 50 L12 40 Z" fill="#ffd21a" stroke="#141414" stroke-width="2" transform="rotate(35 20 40)"/><path d="M26 30 L52 8" stroke="#141414" stroke-width="2.5" stroke-dasharray="4 3"/><path d="M52 8 l-9 2 l5 6 z" fill="#141414"/></svg></div>
+      <div><h3>Steering</h3><p><b>Let go</b> until the nose points where you want to go, then <b>hold</b>. That's how real fighter kites are flown.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="72" height="40" viewBox="0 0 72 40"><rect x="4" y="8" width="64" height="9" fill="#141414"/><rect x="6" y="10" width="44" height="5" fill="#ffd21a"/><rect x="4" y="21" width="64" height="9" fill="#141414"/><rect x="6" y="23" width="24" height="5" fill="#d81b3c"/></svg></div>
+      <div><h3>Fights · चैट!</h3><p>Cross a rival's string to fight. Two bars show how worn each string is (yours is <b>yellow</b>). The first string to wear through is cut: <b>चैट!</b></p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M18 4 L26 13 L18 22 L10 13 Z" fill="#ffd21a" stroke="#141414" stroke-width="2"/><path d="M46 30 L54 39 L46 48 L38 39 Z" fill="#d81b3c" stroke="#141414" stroke-width="2"/><text x="18" y="34" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="11">खिच</text><text x="46" y="24" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="11">ढिल</text></svg></div>
+      <div><h3>Pick the right move</h3><p><b>Higher</b> than the other kite? <b>Hold and pull</b>. <b>Lower</b>? <b>Let go</b> and keep the string running out. Pulling from below almost always loses.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M2 30 Q32 44 62 30" fill="none" stroke="#141414" stroke-width="2.5"/><path d="M2 38 Q32 52 62 38" fill="none" stroke="#141414" stroke-width="2.5"/><path d="M32 24 L40 33 L32 42 L24 33 Z" fill="#ffd21a" stroke="#141414" stroke-width="2" transform="rotate(150 32 33)"/></svg></div>
+      <div><h3>Stay up</h3><p>Don't let your kite sink onto the <b>rooftops and electric wires</b>: तारमा अड्कियो! When your spool runs out, the kite can't go farther and letting go stops cutting. You have <b>3 kites</b>.</p></div>
+    </div>
+
+    <div class="keys">
+      <div><b>📱 Phone</b>Hold a finger anywhere to pull, lift it to let go</div>
+      <div><b>💻 Laptop</b>Hold Space or the mouse button to pull</div>
+    </div>
+
+    <button class="btn" id="howClose">बुझें! · Got it</button>
   </div>
 </div>
 
@@ -381,7 +445,7 @@ function drawBackground() {
   }
 
   // a bamboo linge ping (Dashain swing) in an open field
-  const px = W * 0.72, py = 640;
+  const px = W * (W > 1000 ? 0.79 : 0.9), py = 640;
   c.strokeStyle = "#8d6e3f"; c.lineWidth = 4;
   c.beginPath(); c.moveTo(px - 30, py + 40); c.lineTo(px, py - 70); c.lineTo(px + 30, py + 40); c.stroke();
   c.lineWidth = 1.5; c.beginPath(); c.moveTo(px, py - 70); c.lineTo(px - 6, py + 15); c.moveTo(px, py - 70); c.lineTo(px + 6, py + 15); c.stroke();
@@ -395,11 +459,21 @@ function drawBackground() {
       const w = wMin + hash(k) * (wMax - wMin), h = hMin + hash(k + 50) * (hMax - hMin);
       const top = base - h;
       const col = colors[Math.floor(hash(k + 7) * colors.length)];
+      const brick = col === "#b5533c" || col === "#a44a35";
       c.fillStyle = col; c.fillRect(x, top, w - 2, 1000 - top);
       c.fillStyle = "rgba(0,0,0,.12)"; c.fillRect(x, top, w - 2, 5);
-      // windows
-      c.fillStyle = row === 2 ? "#3e2723" : "rgba(40,30,25,.55)";
-      for (let wy = top + 18; wy < 1000; wy += 34) for (let wx = x + 10; wx < x + w - 16; wx += 24) c.fillRect(wx, wy, 10, 14);
+      // windows: carved dark-wood lattice on the old brick houses, plain glass on concrete ones
+      for (let wy = top + 18; wy < 1000; wy += 34) for (let wx = x + 10; wx < x + w - 16; wx += 24) {
+        if (brick && row >= 1) {
+          c.fillStyle = "#3e2723"; c.fillRect(wx - 2, wy - 2, 14, 18);
+          c.strokeStyle = "#8d6e63"; c.lineWidth = 1;
+          c.beginPath(); c.moveTo(wx + 3, wy); c.lineTo(wx + 3, wy + 14); c.moveTo(wx + 7, wy); c.lineTo(wx + 7, wy + 14);
+          c.moveTo(wx, wy + 7); c.lineTo(wx + 10, wy + 7); c.stroke();
+        } else {
+          c.fillStyle = row === 2 ? "#3e2723" : "rgba(40,30,25,.55)";
+          c.fillRect(wx, wy, 10, 14);
+        }
+      }
       // rooftop clutter: black water tank or bare rods of an unfinished floor
       if (hash(k + 3) < 0.45) { c.fillStyle = "#1b1b1b"; c.fillRect(x + w * 0.6, top - 16, 18, 16); c.fillRect(x + w * 0.6 - 2, top - 18, 22, 4); }
       else if (hash(k + 4) < 0.5) {
@@ -409,6 +483,9 @@ function drawBackground() {
       if (row >= 1 && Math.abs(x + w / 2 - W / 2) > 90) roofs.push({ x: x + w * 0.35, y: top });
       x += w; k++;
     }
+    // temples rise above the roofs behind the nearest row of houses
+    if (row === 0) for (const f of (W > 1000 ? [0.45, 0.9] : [0.47])) drawPagoda(c, W * f, 700, 0.7, 3);
+    if (row === 1) for (const f of (W > 1000 ? [0.33, 0.64] : [0.7])) drawPagoda(c, W * f, 768, 1.1, 4);
   }
 
   // electric poles and the tangle of wires (the real enemy of every kite)
@@ -426,6 +503,149 @@ function drawBackground() {
   c.fillStyle = "#8a8a8a"; c.fillRect(0, 935, W, 65);
   c.fillStyle = "#a3a3a3"; c.fillRect(0, 935, W, 8);
 }
+
+function drawPagoda(c, x, base, s, tiers) {
+  // A Newar pagoda temple: stepped brick plinth, shrinking brick tiers each under a wide
+  // dark tiled roof on wooden struts, a gold eave trim, and a golden pinnacle (gajur) on top.
+  let y = base;
+  for (let i = 0; i < 3; i++) {
+    const w = 130 * s * (1 - i * 0.16), h = 12 * s;
+    c.fillStyle = "#a9472f"; c.fillRect(x - w / 2, y - h, w, h);
+    c.fillStyle = "#c46a4e"; c.fillRect(x - w / 2, y - h, w, 3 * s);
+    y -= h;
+  }
+  for (let i = 0; i < tiers; i++) {
+    const ww = 56 * s * (1 - i * 0.17), wh = 28 * s;
+    c.fillStyle = "#8f3a28"; c.fillRect(x - ww / 2, y - wh, ww, wh);
+    c.fillStyle = "#3e2723";
+    if (i === 0) c.fillRect(x - 7 * s, y - wh * 0.8, 14 * s, wh * 0.8);                 // door
+    else for (const dx of [-ww * 0.25, ww * 0.25]) c.fillRect(x + dx - 4 * s, y - wh * 0.75, 8 * s, wh * 0.5);
+    y -= wh;
+    const rw = ww * 2 + 16 * s, rh = 15 * s;
+    c.strokeStyle = "#4e342e"; c.lineWidth = 1.5 * s;                                      // struts
+    for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(x + k * ww * 0.22, y + wh * 0.35); c.lineTo(x + k * rw * 0.2, y + 2); c.stroke(); }
+    c.fillStyle = "#5a3324";                                                               // roof, eaves turned up
+    c.beginPath();
+    c.moveTo(x - rw / 2 - 4 * s, y + 4 * s);
+    c.quadraticCurveTo(x - rw / 2 + 6 * s, y - 2 * s, x - ww * 0.42, y - rh);
+    c.lineTo(x + ww * 0.42, y - rh);
+    c.quadraticCurveTo(x + rw / 2 - 6 * s, y - 2 * s, x + rw / 2 + 4 * s, y + 4 * s);
+    c.closePath(); c.fill();
+    c.fillStyle = "#d4a017"; c.fillRect(x - rw / 2, y + s, rw, 2.5 * s);                 // gold trim
+    y -= rh;
+  }
+  c.fillStyle = "#d4a017";                                                                 // gajur
+  c.beginPath(); c.arc(x, y - 4 * s, 6 * s, Math.PI, 0); c.fill();
+  c.beginPath(); c.moveTo(x - 4 * s, y - 6 * s); c.lineTo(x, y - 30 * s); c.lineTo(x + 4 * s, y - 6 * s); c.fill();
+}
+
+// ============================================================================
+// Music. If music.mp3 sits next to this page (for example a Mangal Dhun recording you have
+// the right to use), it loops in the background. Otherwise an ORIGINAL tune plays, synthesized
+// in the style of a panche baja band: a sahanai (reed pipe) over a drone, with damaha (big drum),
+// dholki (hand drum), tyamko (small drum) and jhyali (cymbals). It is not Mangal Dhun itself.
+// ============================================================================
+const MUSIC_FILE = "music.mp3";
+const MUSIC_FILE_VOLUME = 0.35;
+const SYNTH_VOLUME = 0.22;
+const EIGHTH = 60 / 140 / 2;              // 140 beats a minute
+const SA = 293.66;                        // the home note (D4)
+const SWARA = { "D.": -3, S: 0, R: 2, G: 4, P: 7, D: 9, "S'": 12, "R'": 14 };
+// four 8-beat lines of [note, length in eighths]; an original melody on a five-note scale
+const TUNE = [
+  [["S", 2], ["R", 1], ["G", 1], ["P", 2], ["G", 1], ["R", 1], ["G", 2], ["P", 1], ["D", 1], ["P", 4]],
+  [["D", 1], ["P", 1], ["G", 1], ["P", 1], ["D", 2], ["S'", 2], ["R'", 1], ["S'", 1], ["D", 1], ["P", 1], ["G", 4]],
+  [["G", 1], ["P", 1], ["D", 1], ["S'", 1], ["R'", 2], ["S'", 1], ["D", 1], ["P", 2], ["G", 1], ["R", 1], ["S", 4]],
+  [["R", 1], ["G", 1], ["P", 2], ["G", 1], ["R", 1], ["S", 2], ["D.", 1], ["S", 1], ["R", 1], ["G", 1], ["S", 4]],
+];
+const NOTES = [];                          // step -> { freq, len }
+TUNE.flat().reduce((step, [sw, len]) => { NOTES[step] = { freq: SA * Math.pow(2, SWARA[sw] / 12), len }; return step + len; }, 0);
+const LOOP_STEPS = TUNE.flat().reduce((n, [, len]) => n + len, 0);
+
+const Music = {
+  mode: null, audio: null, master: null, drone: null, timer: 0, nextT: 0, step: 0, playing: false, lastFreq: SA,
+  start() {
+    if (this.playing) return;
+    this.playing = true;
+    if (this.mode !== "synth") {
+      // try the recording first (inside the tap, so phones allow it); fall back to the synth tune
+      if (!this.audio) { this.audio = new Audio(MUSIC_FILE); this.audio.loop = true; }
+      this.audio.volume = Sound.muted ? 0 : MUSIC_FILE_VOLUME;
+      this.audio.play().then(() => { this.mode = "file"; if (!this.playing) this.audio.pause(); })
+        .catch(() => { this.mode = "synth"; if (this.playing) this.startSynth(); });
+      return;
+    }
+    this.startSynth();
+  },
+  stop() {
+    this.playing = false;
+    if (this.audio) this.audio.pause();
+    clearInterval(this.timer); this.timer = 0;
+    if (this.drone) { this.drone.forEach(o => o.stop()); this.drone = null; }
+  },
+  setMuted(m) {
+    if (this.audio) this.audio.volume = m ? 0 : MUSIC_FILE_VOLUME;
+    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : SYNTH_VOLUME, Sound.ctx.currentTime, 0.05);
+  },
+  startSynth() {
+    const ac = Sound.ctx;
+    if (!ac || this.timer) return;
+    if (!this.master) { this.master = ac.createGain(); this.master.connect(ac.destination); }
+    this.master.gain.value = Sound.muted ? 0 : SYNTH_VOLUME;
+    // drone on Sa and Pa, like the shruti under a sahanai
+    const g = ac.createGain(); g.gain.value = 0.08; g.connect(this.master);
+    this.drone = [SA / 2, SA * 0.75].map(f => { const o = ac.createOscillator(); o.type = "triangle"; o.frequency.value = f; o.connect(g); o.start(); return o; });
+    this.nextT = ac.currentTime + 0.1;
+    this.timer = setInterval(() => {
+      while (this.nextT < ac.currentTime + 0.3) { this.playStep(this.step % LOOP_STEPS, this.nextT); this.nextT += EIGHTH; this.step++; }
+    }, 60);
+  },
+  playStep(step, t) {
+    const n = NOTES[step];
+    if (n) this.sahanai(n.freq, t, n.len * EIGHTH);
+    const beat = step % 16;                // an 8-beat cycle in eighths
+    if (beat === 0 || beat === 8) this.drum(70, 42, 0.45, 0.9, t);                 // damaha
+    if ([3, 6, 11, 14].includes(beat)) this.drum(190, 120, 0.16, 0.45, t);         // dholki
+    if ([2, 4, 10, 12, 13].includes(beat)) this.drum(420, 260, 0.07, 0.3, t);      // tyamko
+    this.cymbal(t, beat % 8 === 0 ? 0.25 : 0.06, beat % 8 === 0 ? 0.11 : 0.05);  // jhyali
+  },
+  sahanai(freq, t, dur) {
+    const ac = Sound.ctx;
+    const o = ac.createOscillator(), o2 = ac.createOscillator();
+    o.type = "sawtooth"; o2.type = "square";
+    // slide into the note from the last one (meend), then a gentle vibrato
+    for (const osc of [o, o2]) {
+      osc.frequency.setValueAtTime(this.lastFreq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq, t + 0.05);
+    }
+    o2.detune.value = 6;
+    const lfo = ac.createOscillator(), lg = ac.createGain();
+    lfo.frequency.value = 5.5; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(freq * 0.007, t + 0.2);
+    lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+    const reed = ac.createBiquadFilter(); reed.type = "peaking"; reed.frequency.value = 1300; reed.gain.value = 9;
+    const soft = ac.createBiquadFilter(); soft.type = "lowpass"; soft.frequency.value = 2800;
+    const mix = ac.createGain(); mix.gain.value = 0.35;
+    const env = ac.createGain();
+    env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(0.32, t + 0.03);
+    env.gain.setValueAtTime(0.32, t + Math.max(0.04, dur - 0.06)); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(env); o2.connect(mix); mix.connect(env);
+    env.connect(reed).connect(soft).connect(this.master);
+    for (const osc of [o, o2, lfo]) { osc.start(t); osc.stop(t + dur + 0.02); }
+    this.lastFreq = freq;
+  },
+  drum(f0, f1, dur, vol, t) {
+    const ac = Sound.ctx, o = ac.createOscillator(), g = ac.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t + dur);
+  },
+  cymbal(t, dur, vol) {
+    const ac = Sound.ctx, src = ac.createBufferSource(); src.buffer = Sound.noise;
+    const f = ac.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 6500;
+    const g = ac.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.master); src.start(t, Math.random() * 0.5); src.stop(t + dur);
+  },
+};
 
 // ============================================================================
 // Kites: shared physics for you and the rivals
@@ -601,7 +821,7 @@ function cutKite(k, x, y) {
   k.dangle = Math.min(160, Math.hypot(k.x - x, k.y - y));
   k.vx = game.wind * 1.2 + rand(-20, 20); k.vy = rand(25, 45); k.fallSpin = rand(-1.5, 1.5);
   k.loose = { ax: k.anchor.x, ay: k.anchor.y, x, y, t: 0 };     // the piece left in the flier's hands
-  floater("चेट!", x, y - 30, k.isPlayer ? "#fff" : "#ffd21a", true);
+  floater("चैट!", x, y - 30, k.isPlayer ? "#fff" : "#ffd21a", true);
   game.fights.forEach((e, id) => { if (id === k.id) game.fights.delete(id); });
   if (k.isPlayer) loseKite("Your string was cut");
   else {
@@ -842,10 +1062,11 @@ function drawCut(k) {
 }
 
 let lastT = performance.now();
+let paused = false;          // true while the how-to guide is open mid-game
 function frame(t) {
   const dt = Math.min((t - lastT) / 1000, 1 / 30);
   lastT = t;
-  update(dt);
+  if (!paused) update(dt);
   draw();
   requestAnimationFrame(frame);
 }
@@ -856,7 +1077,7 @@ function frame(t) {
 const stage = $("stage");
 let activePointer = null;
 stage.addEventListener("pointerdown", e => {
-  if (activePointer !== null) return;
+  if (activePointer !== null || paused) return;
   Sound.init();
   activePointer = e.pointerId;
   stage.setPointerCapture(e.pointerId);
@@ -872,7 +1093,7 @@ stage.addEventListener("pointercancel", pointerUp);
 let keyHeld = false;
 window.addEventListener("keydown", e => {
   if (e.code !== "Space" || e.repeat) return;
-  if (!$("startScreen").hidden || !$("resultScreen").hidden) return;
+  if (!$("startScreen").hidden || !$("resultScreen").hidden || paused) return;
   e.preventDefault(); Sound.init(); keyHeld = true; holding = true;
 });
 window.addEventListener("keyup", e => {
@@ -912,18 +1133,20 @@ function start() {
   };
   game.player = playerKite({ x: W / 2, y: 905 });
   updateHud();
+  Music.start();
 }
 
 function endGame() {
   if (!game || game.over) return;
   game.over = true;
+  Music.stop();
   Sound.level(Sound.saw, 0);
   const newRecord = game.score > best;
   if (newRecord) { best = game.score; store.set("changa.best", best); }
   updateHud();
   const [, title, line] = RANKS.find(([n]) => game.score >= n);
   $("resultTitle").textContent = title;
-  $("resultScore").textContent = `${toNep(game.score)} चेट`;
+  $("resultScore").textContent = `${toNep(game.score)} चैट`;
   $("resultNote").textContent = `${line} You cut ${game.score} kite${game.score === 1 ? "" : "s"}. Last kite: ${game.lastLoss.toLowerCase()}. Best ${best}.`;
   $("newRecord").hidden = !newRecord || game.score === 0;
   $("resultScreen").hidden = false;
@@ -931,10 +1154,34 @@ function endGame() {
 }
 
 function shareText() {
-  return `🪁 चङ्गा चेट: I cut ${toNep(game.score)} kites (${game.score}) this Dashain! Can you beat me?`;
+  return `🪁 चङ्गा चैट: I cut ${toNep(game.score)} kites (${game.score}) this Dashain! Can you beat me?`;
 }
 
 $("startBtn").addEventListener("click", start);
+
+let howFromStart = false;
+function openHow(fromStart) {
+  howFromStart = fromStart;
+  if (!fromStart && game && !game.over && !paused) {
+    paused = true;
+    holding = false; keyHeld = false; activePointer = null;
+    Music.stop();
+    Sound.level(Sound.wind, 0); Sound.level(Sound.saw, 0);
+  }
+  $("startScreen").hidden = true;
+  $("howScreen").hidden = false;
+}
+function closeHow() {
+  $("howScreen").hidden = true;
+  if (howFromStart) { $("startScreen").hidden = false; return; }
+  if (paused) { paused = false; lastT = performance.now(); Music.start(); }
+}
+$("howBtn").addEventListener("click", () => openHow(true));
+$("helpBtn").addEventListener("click", () => {
+  if (!$("resultScreen").hidden || !$("howScreen").hidden) return;
+  openHow(!$("startScreen").hidden || !game || game.over);
+});
+$("howClose").addEventListener("click", closeHow);
 $("againBtn").addEventListener("click", start);
 $("shareBtn").addEventListener("click", async () => {
   const text = shareText();
@@ -952,6 +1199,7 @@ $("mute").addEventListener("click", () => {
   Sound.muted = !Sound.muted;
   $("mute").textContent = Sound.muted ? "🔇" : "🔊";
   if (Sound.ctx) { Sound.level(Sound.wind, 0); Sound.level(Sound.saw, 0); }
+  Music.setMuted(Sound.muted);
 });
 
 resize();
