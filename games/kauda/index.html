@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Kauda</title>
+  <meta name="description" content="Laxmi Puja night: throw sixteen cowries with the family. Play money only.">
+  <meta name="theme-color" content="#ffd21a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@600;800&family=Mukta:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* Same signboard system as the other games; the scene is a room on Laxmi Puja night. */
+    :root {
+      --ink: #10212b;
+      --muted: #3f5a67;
+      --sign: #ffd21a;
+      --sign-red: #d4001a;
+      --sign-black: #141414;
+      --paper: #fffdf6;
+      --floor: #4a281d;
+    }
+    * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--floor);
+      color: var(--ink);
+      font-family: "Mukta", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    .shop { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* --- signboard ----------------------------------------------------- */
+    .sign {
+      background: var(--sign);
+      border-bottom: 6px solid var(--sign-red);
+      box-shadow: 0 4px 0 rgba(0, 0, 0, .12);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+      position: relative; z-index: 2;
+    }
+    .sign .back { color: var(--sign-black); font-weight: 800; text-decoration: none; font-size: .95rem; }
+    .sign .board { text-align: center; line-height: 1.2; }
+    .sign .np {
+      display: block;
+      font-family: "Yatra One", "Mukta", sans-serif;
+      color: var(--sign-red);
+      font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, .15);
+    }
+    .sign .en {
+      display: block;
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      color: var(--sign-black);
+      font-size: clamp(.62rem, 2.3vw, .9rem);
+      letter-spacing: .12em; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .sign .tools { justify-self: end; display: flex; gap: 8px; }
+    .sign .round {
+      background: var(--sign-black); color: var(--sign);
+      border: 0; border-radius: 999px;
+      width: 36px; height: 36px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* --- stage --------------------------------------------------------- */
+    .stage { position: relative; flex: 1; min-height: 0; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+    .hud {
+      position: absolute; left: 0; right: 0; top: 10px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 0 16px; pointer-events: none;
+    }
+    .chip {
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      background: var(--sign-black); color: var(--sign);
+      padding: 2px 12px; border-radius: 8px; font-size: 1rem; white-space: nowrap;
+    }
+    .chip.hot { background: var(--sign-red); color: #fff; }
+    .chip[hidden] { display: none; }
+    .bar {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      pointer-events: none;
+    }
+    .msg {
+      background: rgba(20, 20, 20, .82); color: var(--sign);
+      font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: .98rem;
+      padding: 5px 14px; border-radius: 999px; text-align: center; max-width: 100%;
+    }
+    .msg:empty { display: none; }
+    .actions { display: flex; gap: 8px; pointer-events: auto; }
+    .actions[hidden] { display: none; }
+    .act {
+      border: 0; border-radius: 10px; padding: 10px 16px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.05rem "Baloo 2", sans-serif; cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+    }
+    .act:active { box-shadow: none; transform: translateY(2px); }
+    .act.dark { background: var(--sign-black); color: var(--sign); }
+    .act[hidden] { display: none; }
+
+    /* --- overlays ------------------------------------------------------ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(16, 12, 10, .6);
+      backdrop-filter: blur(3px);
+      display: grid; place-items: center;
+      padding: 16px;
+      z-index: 10;
+      touch-action: manipulation;
+      overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .signpanel {
+      width: 100%; max-width: 440px;
+      background: var(--sign);
+      border: 6px solid var(--sign-red);
+      outline: 3px solid var(--sign-black);
+      border-radius: 10px;
+      padding: 20px 22px 20px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
+    }
+    .signpanel h1 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 3rem; line-height: 1.05; }
+    .signpanel h2 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 2.1rem; line-height: 1.15; }
+    .signpanel .sub { font-family: "Baloo 2", sans-serif; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .85rem; }
+    .signpanel ol { text-align: left; margin: 12px 0 4px; padding-left: 1.3em; font-weight: 600; }
+    .signpanel li { margin: 5px 0; }
+    .signpanel .note { font-weight: 600; margin-top: 6px; }
+    .signpanel .small { font-size: .85rem; margin-top: 8px; }
+    .signpanel .big {
+      font-family: "Yatra One", sans-serif; font-size: 3.6rem; line-height: 1; margin: 6px 0 0;
+      color: #fff; -webkit-text-stroke: 3px var(--sign-black); paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .signpanel .record { display: inline-block; background: var(--sign-red); color: #fff; font-weight: 800; padding: 2px 12px; border-radius: 999px; margin-top: 6px; }
+    .signpanel .record[hidden] { display: none; }
+    .btn {
+      display: block; width: 100%;
+      margin-top: 12px; padding: 12px;
+      border: 0; border-radius: 10px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.2rem "Baloo 2", sans-serif;
+      cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+    }
+    .btn:active { box-shadow: none; transform: translateY(2px); }
+    .btn.secondary { background: var(--sign-black); color: var(--sign); }
+    .text-link {
+      display: block; width: 100%; margin-top: 10px; background: none; border: 0; cursor: pointer;
+      font: 800 1.05rem "Baloo 2", sans-serif; color: var(--sign-black); text-decoration: underline;
+    }
+    .signpanel.guide { max-width: 540px; max-height: calc(100dvh - 32px); overflow-y: auto; text-align: left; }
+    .guide h2, .guide .sub { text-align: center; }
+    .step {
+      display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 10px;
+      padding: 10px 12px; margin-top: 10px;
+    }
+    .step .pic { display: grid; place-items: center; min-height: 56px; }
+    .step p { margin: 2px 0 0; font-size: .95rem; line-height: 1.35; }
+    .step h3 { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.05rem; line-height: 1.2; }
+    table.daus { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: .92rem; }
+    table.daus td { border-bottom: 1px solid #ccc; padding: 2px 4px; }
+    table.daus td:first-child { font-weight: 800; white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="shop">
+  <header class="sign">
+    <a class="back" href="../../index.html">← खेलहरू</a>
+    <div class="board">
+      <span class="np">कौडा</span>
+      <span class="en">Laxmi Puja night</span>
+    </div>
+    <div class="tools">
+      <button class="round" id="helpBtn" aria-label="How to play">?</button>
+      <button class="round" id="mute" aria-label="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="hud">
+      <span class="chip" id="night">रात ०/२४</span>
+      <span class="chip hot" id="martal" hidden></span>
+      <span class="chip" id="bank">सेल ०</span>
+    </div>
+    <div class="bar">
+      <div class="msg" id="msg"></div>
+      <div class="actions" id="actions">
+        <button class="act dark" id="undoBtn">↺ फिर्ता</button>
+        <button class="act" id="goBtn">तयार · Ready</button>
+        <button class="act dark" id="standBtn" hidden>उठ्ने · Stand up</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="signpanel">
+    <h1>कौडा</h1>
+    <div class="sub">Kauda · Laxmi Puja night</div>
+    <ol>
+      <li>Four seats: <b>तिया ३</b> (you), <b>चौका ४</b>, <b>पन्जा ५</b>, <b>छक्का ६</b>. The thrower (<b>हाते</b>) throws 16 cowries.</li>
+      <li>Count the shells with the teeth up. 4 → चौका, 5 → पन्जा, 6 → छक्का, 7 → तिया, and round again.</li>
+      <li>Thrower's own seat comes up: <b>मार्यो!</b> The thrower takes everything, throws again, and all bets double (<b>मार-ताल</b>).</li>
+      <li>Another seat comes up: the thrower pays that seat, and the turn moves on.</li>
+      <li>Tap any seat that isn't throwing to add a side bet (<b>च्याखे</b>). You can only stand up when the turn reaches <b>चौका</b>.</li>
+    </ol>
+    <p class="small">सेलरोटीको खेल · Play money only. We play with sel roti, never real money.</p>
+    <button class="btn" id="startBtn">खेलौं · Sit down</button>
+    <button class="text-link" id="howBtn">कसरी खेल्ने? · How to play</button>
+  </div>
+</div>
+
+<div class="overlay" id="howScreen" hidden>
+  <div class="signpanel guide">
+    <h2>कसरी खेल्ने?</h2>
+    <div class="sub">How to play</div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><ellipse cx="22" cy="20" rx="12" ry="8" fill="#f6f0e2" stroke="#141414" stroke-width="2"/><path d="M12 20 L32 20" stroke="#5d4037" stroke-width="2"/><path d="M15 18 v4 M19 18 v4 M23 18 v4 M27 18 v4" stroke="#5d4037" stroke-width="1.2"/><ellipse cx="42" cy="38" rx="12" ry="8" fill="#e9dcc3" stroke="#141414" stroke-width="2"/><circle cx="38" cy="36" r="1.5" fill="#b08d57"/><circle cx="45" cy="40" r="1.5" fill="#b08d57"/></svg></div>
+      <div><h3>16 cowries</h3><p>Each shell lands either <b>teeth up</b> (the slit shows) or <b>teeth down</b> (the smooth back shows). Only the teeth-up shells count.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><rect x="8" y="10" width="48" height="36" rx="6" fill="#d9b77a" stroke="#141414" stroke-width="2"/><text x="32" y="22" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="9">५</text><text x="32" y="44" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="9">३</text><text x="13" y="33" font-family="Baloo 2,sans-serif" font-weight="800" font-size="9">६</text><text x="46" y="33" font-family="Baloo 2,sans-serif" font-weight="800" font-size="9">४</text></svg></div>
+      <div><h3>Which seat wins</h3>
+        <table class="daus">
+          <tr><td>तिया ३</td><td>3, 7, 11 or 15 shells up</td></tr>
+          <tr><td>चौका ४</td><td>0, 4, 8, 12 or 16 (all one way counts for चौका)</td></tr>
+          <tr><td>पन्जा ५</td><td>1, 5, 9 or 13</td></tr>
+          <tr><td>छक्का ६</td><td>2, 6, 10 or 14</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><circle cx="32" cy="28" r="18" fill="none" stroke="#7b4a1e" stroke-width="7"/><text x="32" y="33" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="12">×२</text></svg></div>
+      <div><h3>मार्यो and मार-ताल</h3><p>Each turn, every seat except the thrower must bet the stake on its own seat. If the <b>thrower's own seat</b> comes up, the thrower takes everything on the mat and throws again. Everyone's bet then <b>doubles</b>: 1, 2, 4, 8… sel roti. That run of wins is the <b>मार-ताल</b>.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M10 28 H50" stroke="#141414" stroke-width="3"/><path d="M50 28 l-8 -6 v12 z" fill="#141414"/><text x="30" y="18" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="11">दाउ सर्छ</text></svg></div>
+      <div><h3>तिर्यो and the turn moves</h3><p>If <b>another seat</b> comes up, the thrower pays that seat as much as its bet, and pays double on side bets placed there. Every other bet goes back to its owner. Then the turn passes anticlockwise to the next seat (<b>दाउ सर्छ</b>).</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><circle cx="32" cy="28" r="20" fill="#f5e6c8" stroke="#141414" stroke-width="2"/><circle cx="26" cy="24" r="6" fill="none" stroke="#7b4a1e" stroke-width="4"/><circle cx="38" cy="32" r="6" fill="none" stroke="#7b4a1e" stroke-width="4"/><text x="52" y="14" font-family="Baloo 2,sans-serif" font-weight="800" font-size="12">+</text></svg></div>
+      <div><h3>Your side bets (च्याखे)</h3><p>When you're not throwing, <b>tap any seat that isn't throwing</b> to bet 1 sel roti on it. Tap again for more. A side bet pays double if that seat comes up and is lost if the thrower wins. <b>↺ फिर्ता</b> takes your side bets back before the throw.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M32 8 v30" stroke="#141414" stroke-width="3"/><path d="M22 28 l10 12 l10 -12" fill="none" stroke="#141414" stroke-width="3"/><text x="32" y="54" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="11">चौका</text></svg></div>
+      <div><h3>When you can leave</h3><p>You can only stand up when the turn reaches <b>चौका</b>. Leave at any other time and कौडाले पिर्छ (the kauda curses you). After 24 throws the night ends at the next चौका turn. Finish with more sel roti than you started with!</p></div>
+    </div>
+
+    <p class="small" style="margin-top:10px">Rules follow a Nepali rulebook (Nepali Nomad's Net, 2013) and Republica. Every family plays a little differently.</p>
+    <button class="btn" id="howClose">बुझें! · Got it</button>
+  </div>
+</div>
+
+<div class="overlay" id="resultScreen" hidden>
+  <div class="signpanel">
+    <h2 id="resultTitle"></h2>
+    <div class="big" id="resultScore"></div>
+    <p class="note" id="resultNote"></p>
+    <span class="record" id="newRecord" hidden>नयाँ रेकर्ड! New record!</span>
+    <p class="small">Play money only. शुभ दीपावली! Happy Tihar!</p>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn secondary" id="againBtn">फेरि बसौं · Play again</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Design knobs -- tweak these first.
+// Rules follow the Nepali rulebook on Nepali Nomad's Net (2013) and Republica:
+// 16 cowries, 17 outcomes, results go round the four seats in order, चौका gets five.
+// ============================================================================
+const THINI = 1;                    // the base stake (ठिनी), in sel roti
+const START_BANK = 50;              // everyone's sel roti at the start of the night
+const MAX_DOUBLINGS = 6;            // मार-ताल doubles the stake up to 2^6 = 64 times
+const NIGHT_THROWS = 24;            // after this many throws, the night ends at the next चौका turn
+const P_UP = 0.45;                  // chance one cowrie lands teeth up
+const SHELLS = 16;
+const AI_THINK = [0.6, 1.6];        // relatives take this long to place side bets (s)
+const AI_AUTO_THROW = 7;            // a relative throws anyway if you haven't pressed Ready by then (s)
+const BET_COLORS = ["#1e63c7", "#b71c1c", "#8e24aa", "#2e7d32"];   // whose side bet: you, uncle, aunt, cousin
+
+// Seats in anticlockwise order; odd and even seats face each other (rulebook rule 2).
+const SEATS = [
+  { np: "तिया", n: 3, pos: "bottom" },
+  { np: "चौका", n: 4, pos: "right" },
+  { np: "पन्जा", n: 5, pos: "top" },
+  { np: "छक्का", n: 6, pos: "left" },
+];
+// Number of teeth-up shells -> seat: 4 चौका, 5 पन्जा, 6 छक्का, 7 तिया, and round again (0 and 16 are चौका).
+const seatForCount = n => [1, 2, 3, 0][n % 4];
+
+const PEOPLE = [
+  { id: "you", np: "तिमी", skin: "#b97a52" },
+  { id: "uncle", np: "ठूलोबुबा", skin: "#a86b45", topi: true, mustache: true, bets: 0.6, most: 3, fav: 1,
+    lines: ["दोब्बर!", "यो पालि चौका!", "ल हान, हान!"] },
+  { id: "aunt", np: "ठूलीआमा", skin: "#c68a5e", shawl: "#c62828", tika: true, bets: 0.25, most: 1,
+    lines: ["धेरै नलगाऊ है!", "पुग्यो अब!", "लक्ष्मी माताको जय!"] },
+  { id: "cousin", np: "दाइ", skin: "#b97a52", cap: true, bets: 0.45, most: 2,
+    lines: ["छिटो हान न!", "मार-ताल आउँछ!", "चौका पक्का!"] },
+];
+const RANKS = [[25, "लक्ष्मी प्रसन्न!", "Laxmi smiled on you tonight."], [1, "जितियो!", "You go to bed a little richer."],
+               [0, "बराबर", "Not a sel roti won or lost."], [-1e9, "कौडाले पिर्यो", "The cowries were not kind tonight."]];
+
+const $ = id => document.getElementById(id);
+const toNep = n => String(n).replace(/\d/g, d => "०१२३४५६७८९"[d]);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+
+// ============================================================================
+// Sound: rattling cowries, sel roti changing hands, firecrackers outside
+// ============================================================================
+const Sound = {
+  ctx: null, muted: false, noise: null,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    const len = this.ctx.sampleRate;
+    this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  },
+  burst(dur, type, freq, vol, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.ctx.destination); src.start(t, Math.random() * 0.5); src.stop(t + dur);
+  },
+  tone(f0, f1, dur, vol, type = "sine", delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur);
+  },
+  shake() { for (let i = 0; i < 8; i++) this.burst(0.03, "highpass", 3500, 0.12, i * 0.03); },
+  clack() { this.burst(0.025, "bandpass", 2600 + Math.random() * 1500, 0.22); },
+  chip() { this.tone(500, 380, 0.06, 0.08, "triangle"); },
+  win() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, f, 0.18, 0.08, "triangle", i * 0.08)); },
+  lose() { this.tone(330, 220, 0.3, 0.08, "triangle"); },
+  martal() { [660, 880, 660, 880].forEach((f, i) => this.tone(f, f, 0.12, 0.07, "square", i * 0.11)); },
+  cracker() { this.burst(0.25, "lowpass", 1400, 0.25); this.burst(0.08, "highpass", 4000, 0.1, 0.02); },
+};
+
+// ============================================================================
+// Canvas and the room
+// ============================================================================
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const bg = document.createElement("canvas"), bgc = bg.getContext("2d");
+let scale = 1, dpr = 1, W = 600;
+let M = { x: 300, y: 500, w: 400, h: 380 };      // the straw mat
+let seatAt = [], spotAt = [], lamps = [];
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scale = r.height / 1000;
+  W = r.width / scale;
+  for (const c of [canvas, bg]) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  bgc.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  const mw = Math.min(W - 150, 560), mh = 400;
+  M = { x: W / 2, y: 480, w: mw, h: mh };
+  // where each person sits, and where their seat's bets go on the mat
+  seatAt = [
+    { x: W / 2, y: M.y + mh / 2 + 95 },        // तिया (you), bottom
+    { x: M.x + mw / 2 + 42, y: M.y },          // चौका, right
+    { x: W / 2, y: M.y - mh / 2 - 85 },        // पन्जा, top
+    { x: M.x - mw / 2 - 42, y: M.y },          // छक्का, left
+  ];
+  spotAt = [
+    { x: W / 2, y: M.y + mh / 2 - 52 },
+    { x: M.x + mw / 2 - 58, y: M.y },
+    { x: W / 2, y: M.y - mh / 2 + 52 },
+    { x: M.x - mw / 2 + 58, y: M.y },
+  ];
+  lamps = [];
+  for (let i = 0; i < 10; i++) {
+    const t = i / 10, side = Math.floor(t * 4), f = (t * 4) % 1;
+    const x0 = M.x - mw / 2 - 18, x1 = M.x + mw / 2 + 18, y0 = M.y - mh / 2 - 18, y1 = M.y + mh / 2 + 18;
+    const pts = [[lerp(x0, x1, f), y0], [x1, lerp(y0, y1, f)], [lerp(x1, x0, f), y1], [x0, lerp(y1, y0, f)]];
+    lamps.push({ x: pts[side][0], y: pts[side][1], ph: Math.random() * 6 });
+  }
+  drawBackground();
+}
+window.addEventListener("resize", resize);
+
+function drawBackground() {
+  const c = bgc;
+  // a red clay floor, swept for Laxmi Puja
+  const fl = c.createRadialGradient(W / 2, 480, 60, W / 2, 480, 700);
+  fl.addColorStop(0, "#7a3b28"); fl.addColorStop(1, "#3d1f16");
+  c.fillStyle = fl; c.fillRect(0, 0, W, 1000);
+  // a marigold garland across the top
+  for (let i = 0; i <= 30; i++) {
+    const x = i / 30 * W, y = 18 + Math.sin(i / 30 * Math.PI) * 26;
+    c.fillStyle = i % 3 === 0 ? "#ffb300" : "#f57c00";
+    c.beginPath(); c.arc(x, y, 9, 0, Math.PI * 2); c.fill();
+  }
+  // rangoli in two corners
+  for (const [x, y] of [[44, 95], [W - 44, 905]]) {
+    const cols = ["#d81b60", "#ffb300", "#43a047", "#1e88e5", "#ffffff"];
+    for (let r = 5; r >= 1; r--) {
+      c.fillStyle = cols[r - 1];
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * Math.PI * 2;
+        c.beginPath(); c.ellipse(x + Math.cos(a) * r * 4, y + Math.sin(a) * r * 4, r * 4, r * 2, a, 0, Math.PI * 2); c.fill();
+      }
+    }
+  }
+  // Laxmi's red footprints walking in from the door
+  c.fillStyle = "#c62828";
+  for (let i = 0; i < 4; i++) {
+    const x = W * 0.12 + (i % 2) * 16, y = 980 - i * 34;
+    c.beginPath(); c.ellipse(x, y, 6, 10, 0, 0, Math.PI * 2); c.fill();
+    for (let t = 0; t < 4; t++) { c.beginPath(); c.arc(x - 5 + t * 3.3, y - 12, 1.8, 0, Math.PI * 2); c.fill(); }
+  }
+  // the woven straw mat (गुन्द्री)
+  const x0 = M.x - M.w / 2, y0 = M.y - M.h / 2;
+  c.fillStyle = "#d9b77a"; c.fillRect(x0, y0, M.w, M.h);
+  c.strokeStyle = "rgba(120, 80, 30, .25)"; c.lineWidth = 2;
+  for (let y = y0 + 6; y < y0 + M.h; y += 8) { c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + M.w, y); c.stroke(); }
+  c.strokeStyle = "#8d5a2b"; c.lineWidth = 8; c.strokeRect(x0 + 4, y0 + 4, M.w - 8, M.h - 8);
+}
+
+// ============================================================================
+// Game state
+// ============================================================================
+let game = null, now = 0, paused = false;
+let shells = [], floaters = [], bubbles = [];
+let best = store.get("kauda.best", 0);
+
+function newNight() {
+  game = {
+    bank: [START_BANK, START_BANK, START_BANK, START_BANK],
+    thrower: 0, streak: 0, throws: 0, over: false,
+    phase: "bet",
+    stakes: [0, 0, 0, 0],         // each seat's compulsory bet on its own seat this throw
+    side: [],                     // side bets: { who, seat, amt }
+    aiReadyAt: 0, throwAt: 0, settleAt: 0, result: -1,
+    canStand: false,
+  };
+  startRound();
+}
+
+function stake() { return THINI * Math.pow(2, Math.min(game.streak, MAX_DOUBLINGS)); }
+
+function startRound() {
+  const g = game;
+  g.phase = "bet";
+  g.result = -1;
+  g.side = [];
+  g.stakes = [0, 0, 0, 0];
+  shells = [];
+  // every seat except the thrower must bet the stake on its own seat
+  for (let s = 0; s < 4; s++) if (s !== g.thrower) {
+    const a = Math.min(stake(), Math.max(0, g.bank[s]));
+    g.stakes[s] = a; g.bank[s] -= a;
+  }
+  // relatives think about side bets
+  g.aiReadyAt = now + rand(...AI_THINK);
+  g.aiDone = false;
+  g.ready = false;
+  g.autoThrowAt = now + AI_AUTO_THROW;
+  // you may stand up only when the turn has come to चौका (rulebook rule 10)
+  g.canStand = g.thrower === 1;
+  if (g.throws >= NIGHT_THROWS && g.thrower === 1) { endNight("night"); return; }
+  updateHud();
+  updateActions();
+  if (g.thrower === 0) setMsg(g.streak ? "मार-ताल! Throw again: swipe up on the mat, or press Throw" : "You're the हाते. Swipe up on the mat to throw");
+  else setMsg(`${PEOPLE[g.thrower].np} throws. Tap a seat for a side bet (च्याखे), then press Ready`);
+}
+
+function aiSideBets() {
+  const g = game;
+  for (let s = 1; s < 4; s++) {
+    if (s === g.thrower) continue;
+    const p = PEOPLE[s];
+    if (Math.random() > p.bets || g.bank[s] <= 0) continue;
+    const options = [0, 1, 2, 3].filter(k => k !== g.thrower);
+    const seat = p.fav !== undefined && options.includes(p.fav) && Math.random() < 0.6 ? p.fav : options[Math.floor(Math.random() * options.length)];
+    const amt = Math.min(1 + Math.floor(Math.random() * p.most), g.bank[s]) * THINI;
+    g.bank[s] -= amt;
+    g.side.push({ who: s, seat, amt });
+    if (Math.random() < 0.5) say(s, p.lines[Math.floor(Math.random() * p.lines.length)]);
+  }
+  g.aiDone = true;
+  Sound.chip();
+}
+
+function addSideBet(seat) {
+  const g = game;
+  if (g.phase !== "bet" || g.thrower === 0 || seat === g.thrower || g.bank[0] < THINI) return;
+  g.bank[0] -= THINI;
+  const mine = g.side.find(b => b.who === 0 && b.seat === seat);
+  if (mine) mine.amt += THINI; else g.side.push({ who: 0, seat, amt: THINI });
+  Sound.chip();
+  updateHud(); updateActions();
+}
+
+function undoSideBets() {
+  const g = game;
+  if (g.phase !== "bet") return;
+  for (const b of g.side.filter(b => b.who === 0)) g.bank[0] += b.amt;
+  g.side = g.side.filter(b => b.who !== 0);
+  updateHud(); updateActions();
+}
+
+// ============================================================================
+// The throw
+// ============================================================================
+function throwShells() {
+  const g = game;
+  if (g.phase !== "bet") return;
+  if (!g.aiDone) aiSideBets();
+  g.phase = "throw";
+  updateActions();
+  setMsg("");
+  Sound.shake();
+  const from = seatAt[g.thrower];
+  shells = [];
+  for (let i = 0; i < SHELLS; i++) {
+    // scatter around the middle of the mat, not too close together
+    let x, y, tries = 0;
+    do {
+      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.min(M.w, M.h) * 0.3;
+      x = M.x + Math.cos(a) * r; y = M.y + Math.sin(a) * r * 0.85; tries++;
+    } while (tries < 20 && shells.some(s => Math.hypot(s.x - x, s.y - y) < 30));
+    const start = now + 0.25 + i * 0.06 + Math.random() * 0.08;
+    shells.push({ x, y, fx: from.x + rand(-20, 20), fy: from.y + rand(-20, 20), rot: rand(0, Math.PI * 2), spin: rand(-12, 12),
+                  up: Math.random() < P_UP, start, land: start + rand(0.35, 0.55), landed: false });
+  }
+  g.throwAt = now;
+}
+
+function upCount() { return shells.filter(s => s.landed && s.up).length; }
+
+function settle() {
+  const g = game;
+  const n = shells.filter(s => s.up).length;
+  const R = seatForCount(n);
+  g.result = R;
+  g.throws += 1;
+  const T = g.thrower;
+  const label = `${toNep(n)} → ${SEATS[R].np}!`;
+  floater(label, M.x, M.y - 10, "#ffd21a", true);
+  const before = g.bank[0];
+  if (R === T) {
+    // मार्यो: the thrower takes everything on the mat and throws again; bets double next time
+    let pot = g.stakes.reduce((a, b) => a + b, 0) + g.side.reduce((a, b) => a + b.amt, 0);
+    g.bank[T] += pot;
+    floater(`+${toNep(pot)}`, seatAt[T].x, seatAt[T].y - 50, "#ffd21a");
+    g.streak = Math.min(g.streak + 1, MAX_DOUBLINGS + 1);
+    if (T !== 0) say(T, ["ल, मार्यो!", "फेरि मेरो!", "हा हा!"][Math.floor(Math.random() * 3)]);
+    if (g.streak >= 2) Sound.martal(); else (T === 0 ? Sound.win() : Sound.lose());
+    setMsg(T === 0 ? "मार्यो! You take the mat and throw again" : `${PEOPLE[T].np} मार्यो! They throw again, bets double`);
+  } else {
+    // तिर्यो: the thrower pays the winning seat its bet, and side bets on it double; everyone else takes theirs back
+    const pay = g.stakes[R];
+    g.bank[R] += g.stakes[R] + pay; g.bank[T] -= pay;
+    if (pay) floater(`+${toNep(pay)}`, seatAt[R].x, seatAt[R].y - 50, "#ffd21a");
+    for (const b of g.side) {
+      if (b.seat === R) { g.bank[b.who] += b.amt * 2; g.bank[T] -= b.amt; }
+      else g.bank[b.who] += b.amt;
+    }
+    for (let s = 0; s < 4; s++) if (s !== R && s !== T) g.bank[s] += g.stakes[s];
+    setMsg(`${SEATS[R].np} आयो! ${T === 0 ? "You pay" : PEOPLE[T].np + " pays"} · दाउ सर्छ`);
+    if (g.bank[0] > before) Sound.win(); else if (g.bank[0] < before) Sound.lose(); else Sound.chip();
+    g.streak = 0;
+    g.nextThrower = (T + 1) % 4;
+  }
+  const delta = g.bank[0] - before;
+  if (delta && !(R === T && T === 0)) floater(`${delta > 0 ? "+" : ""}${toNep(delta)}`, seatAt[0].x, seatAt[0].y - 50, delta > 0 ? "#ffd21a" : "#ff8a80");
+  g.stakes = [0, 0, 0, 0]; g.side = [];
+  g.phase = "settle";
+  g.settleAt = now + 2.2;
+  updateHud(); updateActions();
+}
+
+function nextRound() {
+  const g = game;
+  if (g.result !== g.thrower) g.thrower = g.nextThrower;
+  if (g.bank[0] <= 0) { endNight("broke"); return; }
+  startRound();
+}
+
+// ============================================================================
+// Update and drawing
+// ============================================================================
+function floater(text, x, y, color, big = false) { floaters.push({ text, x, y, color, big, t: 0 }); }
+function say(seat, text) { bubbles = bubbles.filter(b => b.seat !== seat); bubbles.push({ seat, text, t: 0 }); }
+
+let nextCracker = 4;
+function update(dt) {
+  now += dt;
+  floaters.forEach(f => { f.t += dt; f.y -= 25 * dt; });
+  floaters = floaters.filter(f => f.t < (f.big ? 2 : 1.4));
+  bubbles.forEach(b => b.t += dt);
+  bubbles = bubbles.filter(b => b.t < 2.2);
+  if (now > nextCracker) { nextCracker = now + rand(6, 14); if (game && !game.over) Sound.cracker(); }
+  if (!game || game.over) return;
+  const g = game;
+  if (g.phase === "bet") {
+    if (!g.aiDone && now > g.aiReadyAt) aiSideBets();
+    // relatives throw by themselves once you're ready (or after a pause)
+    if (g.thrower !== 0 && g.ready && now > g.readyAt) throwShells();
+    else if (g.thrower !== 0 && !g.ready && now > g.autoThrowAt) { say(3, "छिटो हान न!"); throwShells(); }
+  } else if (g.phase === "throw") {
+    for (const s of shells) if (!s.landed && now >= s.land) { s.landed = true; Sound.clack(); }
+    if (shells.every(s => s.landed) && now > shells[shells.length - 1].land + 0.45) settle();
+  } else if (g.phase === "settle" && now > g.settleAt) nextRound();
+}
+
+function drawShell(s) {
+  let x = s.x, y = s.y, sc = 1, rot = s.rot;
+  if (!s.landed) {
+    if (now < s.start) { x = s.fx; y = s.fy; sc = 0; }
+    else {
+      const t = clamp((now - s.start) / (s.land - s.start), 0, 1);
+      x = lerp(s.fx, s.x, t); y = lerp(s.fy, s.y, t); sc = 1 + Math.sin(t * Math.PI) * 0.6; rot = s.rot + s.spin * (1 - t);
+    }
+  }
+  if (sc <= 0) return;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc);
+  ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(2, 3, 13, 9, 0, 0, Math.PI * 2); ctx.fill();
+  const showUp = s.landed ? s.up : Math.floor((now - s.start) * 12) % 2 === 0;
+  if (showUp) {
+    // teeth up: the long slit with its little teeth
+    ctx.fillStyle = "#f6f0e2"; ctx.beginPath(); ctx.ellipse(0, 0, 13, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
+    ctx.lineWidth = 1.1;
+    for (let k = -8; k <= 8; k += 3.2) { ctx.beginPath(); ctx.moveTo(k, -2.6); ctx.lineTo(k, 2.6); ctx.stroke(); }
+  } else {
+    // teeth down: the smooth, glossy back
+    const gr = ctx.createRadialGradient(-4, -3, 1, 0, 0, 13);
+    gr.addColorStop(0, "#fffaf0"); gr.addColorStop(1, "#d9c9a8");
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(0, 0, 13, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(160, 120, 70, .5)";
+    for (const [a, b] of [[-4, -2], [3, 2], [5, -3]]) { ctx.beginPath(); ctx.arc(a, b, 1.3, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.strokeStyle = "rgba(60,40,20,.5)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(0, 0, 13, 9, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSelRoti(x, y, n, small = false) {
+  // a little pile of sel roti rings, with the count
+  const k = Math.min(n, 4), r = small ? 7 : 10;
+  for (let i = 0; i < k; i++) {
+    ctx.strokeStyle = "#7b4a1e"; ctx.lineWidth = small ? 4 : 5.5;
+    ctx.beginPath(); ctx.arc(x - (k - 1) * 4 + i * 8, y - i * 2, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "#b9783a"; ctx.lineWidth = small ? 1.5 : 2;
+    ctx.beginPath(); ctx.arc(x - (k - 1) * 4 + i * 8, y - i * 2, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (n > 0) {
+    ctx.font = `800 ${small ? 14 : 18}px "Baloo 2", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 4; ctx.strokeStyle = "#141414"; ctx.fillStyle = "#fff";
+    const tx = x + (small ? 20 : 26);
+    ctx.strokeText(toNep(n), tx, y); ctx.fillText(toNep(n), tx, y);
+  }
+}
+
+function drawPerson(i) {
+  const p = PEOPLE[i], at = seatAt[i];
+  const g = game;
+  const thrower = g && g.thrower === i;
+  ctx.save(); ctx.translate(at.x, at.y);
+  if (thrower) { ctx.fillStyle = "rgba(255, 210, 26, .35)"; ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fill(); }
+  if (p.shawl) { ctx.fillStyle = p.shawl; ctx.beginPath(); ctx.arc(0, 8, 34, 0, Math.PI * 2); ctx.fill(); }
+  else { ctx.fillStyle = i === 0 ? "#1e63c7" : "#f2efe6"; ctx.beginPath(); ctx.arc(0, 10, 30, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = p.skin; ctx.beginPath(); ctx.arc(0, -4, 20, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#141414";
+  if (p.topi) { ctx.fillStyle = "#b71c1c"; ctx.fillRect(-16, -26, 32, 11); ctx.fillStyle = "#212121"; for (let k = -14; k < 16; k += 6) ctx.fillRect(k, -24, 3, 7); }
+  else if (p.cap) { ctx.fillStyle = "#2e7d32"; ctx.beginPath(); ctx.arc(0, -12, 19, Math.PI, 0); ctx.fill(); }
+  else if (p.shawl) { ctx.fillStyle = "#e0e0e0"; ctx.beginPath(); ctx.arc(0, -10, 19, Math.PI, 0); ctx.fill(); }
+  else { ctx.beginPath(); ctx.arc(0, -10, 20, Math.PI * 1.05, Math.PI * 1.95); ctx.fill(); }
+  ctx.fillStyle = "#141414";
+  ctx.beginPath(); ctx.arc(-7, -3, 2.2, 0, Math.PI * 2); ctx.arc(7, -3, 2.2, 0, Math.PI * 2); ctx.fill();
+  if (p.mustache) { ctx.fillStyle = "#e0e0e0"; ctx.fillRect(-9, 4, 18, 4); }
+  if (p.tika) { ctx.fillStyle = "#d50000"; ctx.beginPath(); ctx.ellipse(0, -13, 3, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  // name, seat and sel roti
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const below = SEATS[i].pos !== "bottom";
+  const ly = below ? at.y + 46 : at.y + 44;
+  ctx.font = '800 17px "Baloo 2", sans-serif';
+  ctx.lineWidth = 4; ctx.strokeStyle = "#141414"; ctx.fillStyle = thrower ? "#ffd21a" : "#fff";
+  const name = `${p.np} · ${SEATS[i].np}${thrower ? " · हाते" : ""}`;
+  const nw = ctx.measureText(name).width;
+  const lx = clamp(at.x, nw / 2 + 6, W - nw / 2 - 6);            // keep labels on screen at the side seats
+  ctx.strokeText(name, lx, ly); ctx.fillText(name, lx, ly);
+  drawSelRoti(clamp(at.x - 10, 34, W - 70), ly + 24, g ? g.bank[i] : START_BANK, true);
+  // speech bubble
+  const b = bubbles.find(b => b.seat === i);
+  if (b) {
+    ctx.globalAlpha = clamp(2.2 - b.t, 0, 1);
+    ctx.font = '700 16px "Mukta", sans-serif';
+    const w = ctx.measureText(b.text).width + 20, bx = clamp(at.x, w / 2 + 6, W - w / 2 - 6), by = at.y - 62;
+    ctx.fillStyle = "#fffdf6"; ctx.strokeStyle = "#141414"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx - w / 2, by - 15, w, 30, 10) : ctx.rect(bx - w / 2, by - 15, w, 30); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#141414"; ctx.fillText(b.text, bx, by + 1);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawSpots() {
+  const g = game;
+  for (let s = 0; s < 4; s++) {
+    const sp = spotAt[s];
+    const win = g && g.phase === "settle" && g.result === s;
+    const tappable = g && g.phase === "bet" && g.thrower !== 0 && s !== g.thrower;
+    ctx.fillStyle = win ? "rgba(255, 210, 26, .55)" : s === (g ? g.thrower : 0) ? "rgba(0,0,0,.08)" : "rgba(120, 70, 20, .18)";
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = tappable ? `rgba(255,255,255,${0.5 + 0.3 * Math.sin(now * 5)})` : "rgba(90, 50, 15, .5)";
+    ctx.lineWidth = tappable ? 3 : 2; ctx.setLineDash(tappable ? [6, 5] : []);
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 34, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '22px "Yatra One", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(90, 50, 15, .55)"; ctx.fillText(toNep(SEATS[s].n), sp.x, sp.y - 16);
+    if (!g) continue;
+    if (g.stakes[s]) drawSelRoti(sp.x - 8, sp.y + 6, g.stakes[s]);
+    // side bets around the spot, with a dot for whose they are
+    const bets = g.side.filter(b => b.seat === s);
+    bets.forEach((b, k) => {
+      const a = -Math.PI / 2 + (k + 1) * 0.9, bx = sp.x + Math.cos(a) * 44, by = sp.y + Math.sin(a) * 44;
+      drawSelRoti(bx, by, b.amt, true);
+      ctx.fillStyle = BET_COLORS[b.who];
+      ctx.beginPath(); ctx.arc(bx - 12, by - 12, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+}
+
+function draw() {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0); ctx.restore();
+  // diyos flickering around the mat
+  for (const l of lamps) {
+    ctx.fillStyle = "#8d4b24"; ctx.beginPath(); ctx.ellipse(l.x, l.y, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+    const f = 1 + Math.sin(now * 13 + l.ph) * 0.15 + Math.sin(now * 7.3 + l.ph * 2) * 0.1;
+    const gl = ctx.createRadialGradient(l.x, l.y - 6, 1, l.x, l.y - 6, 26 * f);
+    gl.addColorStop(0, "rgba(255, 200, 80, .55)"); gl.addColorStop(1, "rgba(255, 200, 80, 0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(l.x, l.y - 6, 26 * f, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffcc33"; ctx.beginPath(); ctx.ellipse(l.x, l.y - 7, 3, 6 * f, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  drawSpots();
+  for (let i = 0; i < 4; i++) drawPerson(i);
+  for (const s of shells) drawShell(s);
+  // the running count while shells land
+  if (game && game.phase === "throw") {
+    const n = upCount();
+    ctx.font = '44px "Yatra One", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 7; ctx.strokeStyle = "#141414"; ctx.fillStyle = "#fff";
+    ctx.strokeText(toNep(n), M.x, M.y - M.h / 2 - 10); ctx.fillText(toNep(n), M.x, M.y - M.h / 2 - 10);
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const f of floaters) {
+    ctx.globalAlpha = clamp(1 - f.t / (f.big ? 2 : 1.4), 0, 1);
+    ctx.font = `${f.big ? 52 : 30}px "Yatra One", sans-serif`;
+    ctx.lineWidth = f.big ? 8 : 6; ctx.strokeStyle = "#141414";
+    const x = clamp(f.x, 90, W - 90);
+    ctx.strokeText(f.text, x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+let lastT = performance.now();
+function frame(ts) {
+  const dt = Math.min((ts - lastT) / 1000, 1 / 30);
+  lastT = ts;
+  if (!paused) update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Input: tap a seat to side-bet; swipe up on the mat (or press the button) to throw
+// ============================================================================
+const stage = $("stage");
+let swipe = null;
+function toWorld(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+}
+stage.addEventListener("pointerdown", e => {
+  if (!game || game.over || paused || e.target.closest(".actions")) return;
+  Sound.init();
+  const p = toWorld(e);
+  swipe = { x: p.x, y: p.y };
+  if (game.phase === "bet" && game.thrower !== 0) {
+    const hit = spotAt.findIndex(sp => Math.hypot(sp.x - p.x, sp.y - p.y) < 50);
+    if (hit >= 0) addSideBet(hit);
+  }
+});
+stage.addEventListener("pointerup", e => {
+  if (!swipe || !game) return;
+  const p = toWorld(e);
+  const onMat = Math.abs(swipe.x - M.x) < M.w / 2 && Math.abs(swipe.y - M.y) < M.h / 2 + 80;
+  if (onMat && swipe.y - p.y > 60 && game.phase === "bet" && game.thrower === 0) throwShells();
+  swipe = null;
+});
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat || !game || paused) return;
+  if (!$("startScreen").hidden || !$("resultScreen").hidden || !$("howScreen").hidden) return;
+  e.preventDefault(); Sound.init(); go();
+});
+
+function go() {
+  const g = game;
+  if (!g || g.phase !== "bet") return;
+  if (g.thrower === 0) throwShells();
+  else { g.ready = true; g.readyAt = now + 0.4; updateActions(); }
+}
+
+// ============================================================================
+// Flow
+// ============================================================================
+function setMsg(text) { $("msg").textContent = text; }
+
+function updateHud() {
+  const g = game;
+  $("bank").textContent = `सेल ${toNep(g ? g.bank[0] : START_BANK)}`;
+  $("night").textContent = `रात ${toNep(Math.min(g ? g.throws : 0, NIGHT_THROWS))}/${toNep(NIGHT_THROWS)}`;
+  const mt = $("martal");
+  if (g && g.streak > 0) { mt.hidden = false; mt.textContent = `मार-ताल ×${toNep(Math.pow(2, Math.min(g.streak, MAX_DOUBLINGS)))}`; }
+  else mt.hidden = true;
+}
+
+function updateActions() {
+  const g = game;
+  const betting = g && g.phase === "bet";
+  $("actions").hidden = !betting;
+  if (!betting) return;
+  const mine = g.side.some(b => b.who === 0);
+  $("undoBtn").hidden = g.thrower === 0 || !mine || g.ready;
+  $("goBtn").textContent = g.thrower === 0 ? "कौडा हान · Throw" : g.ready ? "…" : "तयार · Ready";
+  $("goBtn").disabled = !!g.ready;
+  $("standBtn").hidden = !g.canStand || g.ready;
+}
+
+function start() {
+  Sound.init();
+  $("startScreen").hidden = true;
+  $("resultScreen").hidden = true;
+  floaters = []; bubbles = [];
+  newNight();
+  say(1, "ल बस, खेलौं!");
+}
+
+function endNight(reason) {
+  const g = game;
+  if (g.over) return;
+  // anything still on the mat goes back to its owner
+  for (let s = 0; s < 4; s++) g.bank[s] += g.stakes[s];
+  for (const b of g.side) g.bank[b.who] += b.amt;
+  g.stakes = [0, 0, 0, 0]; g.side = [];
+  g.over = true;
+  $("actions").hidden = true;
+  setMsg("");
+  const net = g.bank[0] - START_BANK;
+  const newRecord = net > best;
+  if (newRecord) { best = net; store.set("kauda.best", best); }
+  const [, title, line] = RANKS.find(([n]) => net >= n);
+  $("resultTitle").textContent = title;
+  $("resultScore").textContent = `${net > 0 ? "+" : ""}${toNep(net)} सेल`;
+  const why = reason === "stood" ? "You stood up at चौका." : reason === "broke" ? "You ran out of sel roti." : "The night ended at चौका.";
+  $("resultNote").textContent = `${line} ${why} You finished with ${g.bank[0]} sel roti (started with ${START_BANK}). Best night: ${best > 0 ? "+" : ""}${best}.`;
+  $("newRecord").hidden = !newRecord || net <= 0;
+  $("resultScreen").hidden = false;
+}
+
+function shareText() {
+  const net = game.bank[0] - START_BANK;
+  return `🐚 कौडा: Laxmi Puja night, I finished ${net >= 0 ? "+" : ""}${toNep(net)} sel roti (${net >= 0 ? "+" : ""}${net}). Play money only! शुभ दीपावली`;
+}
+
+let howFromStart = false;
+function openHow(fromStart) {
+  howFromStart = fromStart;
+  if (!fromStart && game && !game.over) paused = true;
+  $("startScreen").hidden = true;
+  $("howScreen").hidden = false;
+}
+function closeHow() {
+  $("howScreen").hidden = true;
+  if (howFromStart) { $("startScreen").hidden = false; return; }
+  if (paused) { paused = false; lastT = performance.now(); }
+}
+
+$("startBtn").addEventListener("click", start);
+$("againBtn").addEventListener("click", start);
+$("goBtn").addEventListener("click", () => { Sound.init(); go(); });
+$("undoBtn").addEventListener("click", undoSideBets);
+$("standBtn").addEventListener("click", () => { if (game && game.canStand && game.phase === "bet") endNight("stood"); });
+$("howBtn").addEventListener("click", () => openHow(true));
+$("helpBtn").addEventListener("click", () => {
+  if (!$("resultScreen").hidden || !$("howScreen").hidden) return;
+  openHow(!$("startScreen").hidden || !game || game.over);
+});
+$("howClose").addEventListener("click", closeHow);
+$("shareBtn").addEventListener("click", async () => {
+  const text = shareText();
+  const url = location.href.split("#")[0];
+  try {
+    if (navigator.share) await navigator.share({ title: "Kauda", text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      $("shareBtn").textContent = "Copied!";
+      setTimeout(() => ($("shareBtn").textContent = "Share"), 1500);
+    }
+  } catch (_) { /* share cancelled */ }
+});
+$("mute").addEventListener("click", () => {
+  Sound.muted = !Sound.muted;
+  $("mute").textContent = Sound.muted ? "🔇" : "🔊";
+});
+
+resize();
+document.fonts.ready.then(resize);
+updateHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
