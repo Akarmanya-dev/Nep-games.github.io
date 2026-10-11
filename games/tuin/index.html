@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Tuin</title>
+  <meta name="description" content="Cross the river on a tuin: brake down, pull up, keep the seat from swinging.">
+  <meta name="theme-color" content="#ffd21a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@600;800&family=Mukta:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* Same signboard system as the other games; the scene is a river gorge in far-west Nepal. */
+    :root {
+      --ink: #10212b;
+      --muted: #3f5a67;
+      --sign: #ffd21a;
+      --sign-red: #d4001a;
+      --sign-black: #141414;
+      --paper: #fffdf6;
+      --sky: #9fcbe3;
+    }
+    * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--sky);
+      color: var(--ink);
+      font-family: "Mukta", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    .shop { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* --- signboard ----------------------------------------------------- */
+    .sign {
+      background: var(--sign);
+      border-bottom: 6px solid var(--sign-red);
+      box-shadow: 0 4px 0 rgba(0, 0, 0, .12);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+      position: relative; z-index: 2;
+    }
+    .sign .back { color: var(--sign-black); font-weight: 800; text-decoration: none; font-size: .95rem; }
+    .sign .board { text-align: center; line-height: 1.2; }
+    .sign .np {
+      display: block;
+      font-family: "Yatra One", "Mukta", sans-serif;
+      color: var(--sign-red);
+      font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, .15);
+    }
+    .sign .en {
+      display: block;
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      color: var(--sign-black);
+      font-size: clamp(.62rem, 2.3vw, .9rem);
+      letter-spacing: .12em; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .sign .tools { justify-self: end; display: flex; gap: 8px; }
+    .sign .round {
+      background: var(--sign-black); color: var(--sign);
+      border: 0; border-radius: 999px;
+      width: 36px; height: 36px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* --- stage --------------------------------------------------------- */
+    .stage { position: relative; flex: 1; min-height: 0; cursor: pointer; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+    .hud {
+      position: absolute; left: 0; right: 0; top: 10px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 0 16px; pointer-events: none;
+    }
+    .chip {
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      background: var(--sign-black); color: var(--sign);
+      padding: 2px 12px; border-radius: 8px; font-size: 1rem; white-space: nowrap;
+    }
+    .day {
+      flex: 1; max-width: 300px; height: 12px;
+      background: rgba(20, 20, 20, .35); border: 2px solid var(--sign-black); border-radius: 999px; overflow: hidden;
+    }
+    .day i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #ffd21a, #f57c00); }
+    .load {
+      position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
+      background: var(--paper); border: 3px solid var(--sign-black); border-radius: 12px;
+      box-shadow: 4px 4px 0 var(--sign-black);
+      padding: 4px 14px; text-align: center; pointer-events: none; white-space: nowrap;
+    }
+    .load .what { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.05rem; line-height: 1.2; }
+    .load .why { font-size: .85rem; color: var(--muted); line-height: 1.2; }
+    .load[hidden] { display: none; }
+    .hint {
+      position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+      background: rgba(20, 20, 20, .82); color: var(--sign);
+      font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1rem;
+      padding: 6px 16px; border-radius: 999px; pointer-events: none;
+      white-space: nowrap; max-width: 94%; overflow: hidden; text-overflow: ellipsis;
+      transition: opacity .2s;
+    }
+    .hint.hide { opacity: 0; }
+
+    /* --- overlays ------------------------------------------------------ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(16, 33, 43, .5);
+      backdrop-filter: blur(3px);
+      display: grid; place-items: center;
+      padding: 16px;
+      z-index: 10;
+      touch-action: manipulation;
+      overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .signpanel {
+      width: 100%; max-width: 440px;
+      background: var(--sign);
+      border: 6px solid var(--sign-red);
+      outline: 3px solid var(--sign-black);
+      border-radius: 10px;
+      padding: 20px 22px 20px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
+    }
+    .signpanel h1 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 3rem; line-height: 1.05; }
+    .signpanel h2 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 2.1rem; line-height: 1.15; }
+    .signpanel .sub { font-family: "Baloo 2", sans-serif; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .85rem; }
+    .signpanel ol { text-align: left; margin: 12px 0 4px; padding-left: 1.3em; font-weight: 600; }
+    .signpanel li { margin: 5px 0; }
+    .signpanel .note { font-weight: 600; margin-top: 6px; }
+    .signpanel .big {
+      font-family: "Yatra One", sans-serif; font-size: 4.2rem; line-height: 1; margin: 6px 0 0;
+      color: #fff; -webkit-text-stroke: 3px var(--sign-black); paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .signpanel .record { display: inline-block; background: var(--sign-red); color: #fff; font-weight: 800; padding: 2px 12px; border-radius: 999px; margin-top: 6px; }
+    .signpanel .record[hidden] { display: none; }
+    .fact {
+      margin-top: 12px; text-align: left;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 10px;
+      padding: 10px 12px; font-size: .92rem; line-height: 1.4;
+    }
+    .fact b { font-family: "Baloo 2", sans-serif; }
+    .btn {
+      display: block; width: 100%;
+      margin-top: 12px; padding: 12px;
+      border: 0; border-radius: 10px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.2rem "Baloo 2", sans-serif;
+      cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+    }
+    .btn:active { box-shadow: none; transform: translateY(2px); }
+    .btn.secondary { background: var(--sign-black); color: var(--sign); }
+    .text-link {
+      display: block; width: 100%; margin-top: 10px; background: none; border: 0; cursor: pointer;
+      font: 800 1.05rem "Baloo 2", sans-serif; color: var(--sign-black); text-decoration: underline;
+    }
+    .signpanel.guide { max-width: 520px; max-height: calc(100dvh - 32px); overflow-y: auto; text-align: left; }
+    .guide h2, .guide .sub { text-align: center; }
+    .step {
+      display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 10px;
+      padding: 10px 12px; margin-top: 10px;
+    }
+    .step .pic { display: grid; place-items: center; min-height: 56px; }
+    .step p { margin: 2px 0 0; font-size: .95rem; line-height: 1.35; }
+    .step h3 { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.05rem; line-height: 1.2; }
+    .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .keys div { background: var(--sign-black); color: var(--sign); border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+    .keys b { display: block; font-family: "Baloo 2", sans-serif; }
+  </style>
+</head>
+<body>
+<div class="shop">
+  <header class="sign">
+    <a class="back" href="../../index.html">← खेलहरू</a>
+    <div class="board">
+      <span class="np">तुइन</span>
+      <span class="en">Cross the river</span>
+    </div>
+    <div class="tools">
+      <button class="round" id="helpBtn" aria-label="How to play">?</button>
+      <button class="round" id="mute" aria-label="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="hud">
+      <span class="chip" id="delivered">पुर्‍याइयो ०</span>
+      <div class="day"><i id="sun"></i></div>
+      <span class="chip" id="mistakes">●●●</span>
+    </div>
+    <div class="load" id="load" hidden><div class="what" id="loadWhat"></div><div class="why" id="loadWhy"></div></div>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="signpanel">
+    <h1>तुइन</h1>
+    <div class="sub">Tuin · a river crossing</div>
+    <ol>
+      <li><b>Going down:</b> the cable sags, so you slide toward the middle. <b>Hold to brake.</b></li>
+      <li><b>Going up:</b> <b>tap to pull</b> yourself along. <b>Hold to grip</b> and rest your arms.</li>
+      <li>The seat swings. <b>Pull while it swings forward</b> to calm it.</li>
+      <li>Swing too much and passengers get scared, and goods drop in the river. 3 mistakes end the day.</li>
+    </ol>
+    <p class="note">Deliver as much as you can before sunset.</p>
+    <button class="btn" id="startBtn">सुरु गरौं · Start</button>
+    <button class="text-link" id="howBtn">कसरी खेल्ने? · How to play</button>
+  </div>
+</div>
+
+<div class="overlay" id="howScreen" hidden>
+  <div class="signpanel guide">
+    <h2>कसरी खेल्ने?</h2>
+    <div class="sub">How to play</div>
+
+    <div class="step">
+      <div class="pic"><svg width="72" height="50" viewBox="0 0 72 50"><path d="M4 8 Q36 44 68 8" fill="none" stroke="#141414" stroke-width="2.5"/><circle cx="18" cy="23" r="5" fill="#8d6e3f" stroke="#141414" stroke-width="2"/><path d="M24 27 l10 6" stroke="#d4001a" stroke-width="3" stroke-linecap="round"/><text x="50" y="46" font-family="Baloo 2, sans-serif" font-weight="800" font-size="11">hold</text></svg></div>
+      <div><h3>Going down: hold to brake</h3><p>The cable sags in the middle, so the first half is downhill. <b>Hold</b> to grip the cable and slow down. Arrive at the bottom too fast and the seat swings hard.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="72" height="50" viewBox="0 0 72 50"><path d="M4 8 Q36 44 68 8" fill="none" stroke="#141414" stroke-width="2.5"/><circle cx="50" cy="24" r="5" fill="#8d6e3f" stroke="#141414" stroke-width="2"/><path d="M56 20 l8 -6" stroke="#2e7d32" stroke-width="3" stroke-linecap="round"/><path d="M64 14 l-7 1 l3 5 z" fill="#2e7d32"/><text x="6" y="46" font-family="Baloo 2, sans-serif" font-weight="800" font-size="11">tap tap</text></svg></div>
+      <div><h3>Going up: tap to pull</h3><p>Past the middle, <b>tap</b> to pull yourself along the cable. Let go completely and you roll back toward the middle. <b>Hold</b> to grip and rest your tired arms (the bar next to you).</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M4 8 L60 8" stroke="#141414" stroke-width="2.5"/><circle cx="32" cy="8" r="4" fill="#8d6e3f"/><path d="M32 8 L44 40" stroke="#6d4c41" stroke-width="2"/><rect x="36" y="38" width="16" height="5" fill="#8d6e3f"/><path d="M14 44 A22 22 0 0 0 50 48" fill="none" stroke="#141414" stroke-width="2" stroke-dasharray="3 3"/></svg></div>
+      <div><h3>Watch the swing</h3><p>The seat swings under the pulley, and every tug kicks it backward. <b>Pull while the seat swings forward</b> and the swing calms down. Pull at the wrong moment and it gets wilder. Wind and a wriggling goat don't help.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><circle cx="20" cy="18" r="9" fill="#e0ac7d" stroke="#141414" stroke-width="2"/><rect x="11" y="28" width="18" height="18" rx="4" fill="#1e63c7"/><rect x="38" y="22" width="20" height="24" rx="4" fill="#c8a165" stroke="#141414" stroke-width="2"/><path d="M44 52 q4 4 8 0" stroke="#1e88e5" stroke-width="2" fill="none"/></svg></div>
+      <div><h3>Passengers and goods</h3><p>Passengers (a student, a grandmother, a goat) are heavy and get <b>scared</b> by big swings or high speed: you must stop and calm them. Goods (rice, gas, medicine, mail) can <b>drop into the river</b>. Each counts as a mistake. <b>3 mistakes</b> end the day.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><circle cx="32" cy="34" r="12" fill="#ffd21a" stroke="#141414" stroke-width="2"/><path d="M4 46 L60 46" stroke="#141414" stroke-width="2.5"/></svg></div>
+      <div><h3>Before sunset</h3><p>Deliver as many loads as you can before the sun goes down (the bar at the top). Each crossing brings a new load back the other way.</p></div>
+    </div>
+
+    <div class="keys">
+      <div><b>📱 Phone</b>Tap to pull, hold to brake or grip</div>
+      <div><b>💻 Laptop</b>Space or the mouse: tap to pull, hold to brake</div>
+    </div>
+
+    <button class="btn" id="howClose">बुझें! · Got it</button>
+  </div>
+</div>
+
+<div class="overlay" id="resultScreen" hidden>
+  <div class="signpanel">
+    <h2 id="resultTitle"></h2>
+    <div class="big" id="resultScore"></div>
+    <p class="note" id="resultNote"></p>
+    <span class="record" id="newRecord" hidden>नयाँ रेकर्ड! New record!</span>
+    <div class="fact"><b>About tuins:</b> in remote parts of Nepal, a tuin is often the only way across a river, for schoolchildren, patients and goods alike. Since 2015 Nepal has replaced most of the tuins it counted with suspension bridges, but about 60 places in Karnali and Sudurpashchim still depend on them (Kathmandu Post, 2026).</div>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn secondary" id="againBtn">भोलि फेरि · Next day</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Design knobs -- tweak these first. Physics runs in metres on a 60 m crossing;
+// the drawing is scaled (and the sag exaggerated) to fit any screen.
+// ============================================================================
+const SPAN = 60;                    // metres from anchor to anchor
+const SAG = 10;                     // how far the middle of the cable hangs below the anchors (m)
+const DROP = 1;                     // the right bank's anchor is this much lower (m)
+const G = 7;                        // gravity along the cable, a little softened by pulley friction (m/s²)
+const ROLL_FRICTION = 0.25;         // pulley friction (m/s²)
+const BRAKE = 6;                    // holding grips the cable: this much braking (m/s²)
+const PULL = 4.0;                   // one tug on the cable adds this much speed (m/s), for a 80 kg load...
+const PULL_CAP = 4.5;               // ...but hands can only drag the cable this fast (m/s)
+const PULL_COST = 0.09;             // arm strength used by one tug (of 1.0)
+const ARM_REST = 0.2;               // arm strength regained per second when not tugging
+const SEAT_LENGTH = 1.5;            // ropes from pulley to seat (m): sets the swing rhythm (~2.5 s)
+const SWING_COUPLING = 0.18;        // how hard a badly timed tug kicks the seat backward...
+const BAD_TUG_JERK = 0.27;          // ...plus this fixed lurch (rad/s), even at full speed
+const SWING_DAMPING = 0.4;
+const BRAKE_SWING = 0.12;           // braking or gripping jolts the seat a little (gravity alone does not)
+const TIMING_BONUS = 0.35;          // a tug on the forward swing gains up to 35% more; on the back swing, 35% less
+const WIND_GUSTS = [5, 10];         // seconds between gusts
+const WIND_STRENGTH = 0.4;          // how hard a gust pushes the seat
+const DAY_SECONDS = 150;            // sunrise to sunset
+const MAX_MISTAKES = 3;
+const RIDER_KG = 70;
+const HOLD_DELAY = 0.15;            // going up, a press counts as a grip only after this long (a tap just pulls)
+
+// Loads. limit = how far (radians) the seat may swing before passengers get scared or goods drop.
+const FROM_VILLAGE = [
+  { id: "student", np: "विद्यार्थी", en: "a student going to school", kg: 30, limit: 0.45, speed: 7.5, alive: true },
+  { id: "granny", np: "हजुरआमा", en: "grandmother, to the health post", kg: 45, limit: 0.35, speed: 6, alive: true },
+  { id: "goat", np: "बाख्रा", en: "a goat for the market (it wriggles)", kg: 25, limit: 0.55, speed: 9, alive: true, wriggle: true },
+];
+const FROM_BAZAAR = [
+  { id: "rice", np: "चामलको बोरा", en: "a sack of rice, heavy", kg: 30, limit: 0.5 },
+  { id: "gas", np: "ग्यास सिलिन्डर", en: "a gas cylinder, heavy", kg: 30, limit: 0.6 },
+  { id: "medicine", np: "औषधि", en: "medicine for the village", kg: 5, limit: 0.5 },
+  { id: "mail", np: "चिठी", en: "letters from the district", kg: 3, limit: 0.7 },
+];
+const RANKS = [[10, "तुइनको उस्ताद", "Master of the tuin."], [6, "भरपर्दो", "The whole village relies on you."],
+               [3, "राम्रो!", "A good day's work."], [0, "भोलि फेरि", "Tomorrow, again."]];
+
+const $ = id => document.getElementById(id);
+const toNep = n => String(n).replace(/\d/g, d => "०१२३४५६७८९"[d]);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+
+// Cable shape in metres: y grows downward. Slope dy/dx > 0 means downhill toward +x.
+const cableY = x => { const t = x / SPAN; return SAG * 4 * t * (1 - t) + DROP * t; };
+const cableSlope = x => { const t = x / SPAN; return (SAG * 4 * (1 - 2 * t) + DROP) / SPAN; };
+const LOWEST_X = (() => { let best = 0; for (let x = 0; x <= SPAN; x += 0.05) if (cableY(x) > cableY(best)) best = x; return best; })();
+
+// ============================================================================
+// Sound: the river, the pulley, tugs, splashes, a goat
+// ============================================================================
+const Sound = {
+  ctx: null, muted: false, noise: null, river: null, pulley: null,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    const len = this.ctx.sampleRate;
+    this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    // the river's roar
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 420;
+    this.river = this.ctx.createGain(); this.river.gain.value = 0;
+    src.connect(f).connect(this.river).connect(this.ctx.destination); src.start();
+    // the pulley whining on the cable
+    const o = this.ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = 200;
+    const pf = this.ctx.createBiquadFilter(); pf.type = "bandpass"; pf.frequency.value = 900; pf.Q.value = 3;
+    this.pulleyGain = this.ctx.createGain(); this.pulleyGain.gain.value = 0;
+    o.connect(pf).connect(this.pulleyGain).connect(this.ctx.destination); o.start();
+    this.pulley = o;
+  },
+  set(riverVol, speed) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.river.gain.setTargetAtTime(this.muted ? 0 : riverVol, t, 0.2);
+    this.pulleyGain.gain.setTargetAtTime(this.muted ? 0 : Math.min(Math.abs(speed) / 12, 1) * 0.035, t, 0.05);
+    this.pulley.frequency.setTargetAtTime(160 + Math.abs(speed) * 45, t, 0.05);
+  },
+  burst(dur, type, freq, vol, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.ctx.destination); src.start(t); src.stop(t + dur);
+  },
+  tone(f0, f1, dur, vol, type = "sine", delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur);
+  },
+  tug() { this.burst(0.08, "bandpass", 350, 0.35); this.tone(140, 90, 0.08, 0.12); },
+  creak() { this.tone(520, 380, 0.18, 0.05, "triangle"); },
+  splash() { this.burst(0.6, "lowpass", 900, 0.4); this.burst(0.3, "highpass", 2500, 0.15, 0.05); },
+  scared() { this.tone(700, 1100, 0.25, 0.08, "triangle"); this.tone(1100, 600, 0.3, 0.08, "triangle", 0.22); },
+  bleat() {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
+    o.type = "sawtooth"; o.frequency.value = 330; lfo.frequency.value = 22; lg.gain.value = 40;
+    lfo.connect(lg).connect(o.frequency);
+    const f = this.ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1100; f.Q.value = 2;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(f).connect(g).connect(this.ctx.destination); o.start(t); lfo.start(t); o.stop(t + 0.5); lfo.stop(t + 0.5);
+  },
+  deliver() { [660, 880, 1100].forEach((f, i) => this.tone(f, f, 0.15, 0.07, "triangle", i * 0.08)); },
+};
+
+// ============================================================================
+// Canvas, layout and the gorge
+// ============================================================================
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const bg = document.createElement("canvas"), bgc = bg.getContext("2d");
+let scale = 1, dpr = 1, W = 600;
+let L = { xL: 0, xR: 0, yA: 300, ppx: 1, sagPx: 120 };   // screen layout of the cable
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scale = r.height / 1000;
+  W = r.width / scale;
+  for (const c of [canvas, bg]) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  bgc.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  const span = Math.min(W - 70, 1100);
+  // The sag is drawn deeper than to scale so the slide and the climb read clearly on a phone.
+  L = { xL: W / 2 - span / 2, xR: W / 2 + span / 2, yA: 330, ppx: span / SPAN, sagPx: span * 0.32 };
+  drawBackground();
+}
+window.addEventListener("resize", resize);
+
+// metres on the cable -> screen units
+const sx = x => L.xL + x * L.ppx;
+const sy = x => L.yA + cableY(x) / SAG * L.sagPx;
+const screenSlope = x => cableSlope(x) / SAG * L.sagPx / L.ppx;
+
+const hash = k => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+
+function drawBackground() {
+  const c = bgc, xL = L.xL, xR = L.xR, top = L.yA;
+  const sky = c.createLinearGradient(0, 0, 0, 500);
+  sky.addColorStop(0, "#6fb2dc"); sky.addColorStop(1, "#d6ecf5");
+  c.fillStyle = sky; c.fillRect(0, 0, W, 1000);
+  // far snow peaks and nearer brown-green ridges
+  c.fillStyle = "#e9f2f7";
+  c.beginPath(); c.moveTo(0, 260);
+  for (let x = -80, k = 0; x < W + 200; x += 190, k++) { c.lineTo(x + 95, 120 - hash(k) * 70); c.lineTo(x + 190, 230); }
+  c.lineTo(W, 260); c.lineTo(W, 400); c.lineTo(0, 400); c.fill();
+  c.fillStyle = "#8a9a6b";
+  c.beginPath(); c.moveTo(0, 400);
+  for (let x = -60, k = 0; x < W + 200; x += 150, k++) c.quadraticCurveTo(x + 75, 210 - hash(k + 5) * 50, x + 150, 260);
+  c.lineTo(W, 400); c.fill();
+
+  // the far wall of the gorge, misty toward the river, with a thin waterfall
+  const wall = c.createLinearGradient(0, top + 30, 0, 870);
+  wall.addColorStop(0, "#8b7b66"); wall.addColorStop(0.6, "#7b8584"); wall.addColorStop(1, "#a9c1c8");
+  c.fillStyle = wall;
+  c.beginPath(); c.moveTo(xL - 40, top + 40);
+  for (let x = xL, k = 0; x <= xR + 40; x += 60, k++) c.lineTo(x, top + 30 + hash(k + 20) * 40);
+  c.lineTo(xR + 40, 870); c.lineTo(xL - 40, 870); c.closePath(); c.fill();
+  c.strokeStyle = "rgba(60, 50, 40, .18)"; c.lineWidth = 2;
+  for (let y = top + 90; y < 820; y += 45) { c.beginPath(); c.moveTo(xL, y); c.lineTo(xR, y + 6); c.stroke(); }
+  const fx = lerp(xL, xR, 0.62);
+  c.fillStyle = "rgba(255, 255, 255, .55)";
+  c.beginPath(); c.moveTo(fx - 3, top + 60); c.lineTo(fx + 3, top + 60); c.lineTo(fx + 12, 860); c.lineTo(fx - 8, 860); c.closePath(); c.fill();
+  const mist = c.createLinearGradient(0, 760, 0, 870);
+  mist.addColorStop(0, "rgba(220, 235, 240, 0)"); mist.addColorStop(1, "rgba(220, 235, 240, .7)");
+  c.fillStyle = mist; c.fillRect(0, 760, W, 110);
+
+  // the river far below
+  const river = c.createLinearGradient(0, 860, 0, 1000);
+  river.addColorStop(0, "#7fa6b5"); river.addColorStop(1, "#4f7b8c");
+  c.fillStyle = river; c.fillRect(0, 860, W, 140);
+
+  // gorge walls: rock cliffs dropping from each bank to the river
+  for (const side of [-1, 1]) {
+    const edge = side < 0 ? xL : xR, outer = side < 0 ? -20 : W + 20;
+    const foot = edge + side * -60;   // the cliff leans a little toward the river
+    c.fillStyle = "#7d6b58";
+    c.beginPath(); c.moveTo(outer, top + 10); c.lineTo(edge, top + 10);
+    c.lineTo(edge - side * 20, top + 160); c.lineTo(foot, 870); c.lineTo(outer, 870); c.closePath(); c.fill();
+    // rock strata
+    c.strokeStyle = "rgba(50, 40, 30, .3)"; c.lineWidth = 3;
+    for (let y = top + 50; y < 860; y += 55) {
+      const ex = lerp(edge, foot, (y - top) / (870 - top));
+      c.beginPath(); c.moveTo(outer, y + 8); c.lineTo(ex, y); c.stroke();
+    }
+    // terraced fields on top
+    for (let i = 0; i < 4; i++) {
+      c.fillStyle = i % 2 ? "#c9a54a" : "#9bb35a";
+      c.fillRect(Math.min(outer, edge), top - 10 - i * 18, Math.abs(edge - outer), 12);
+    }
+    c.fillStyle = "#6f8d3e"; c.fillRect(Math.min(outer, edge), top - 2, Math.abs(edge - outer), 14);
+  }
+
+  // a stone house with a slate roof on the village bank, the bazaar on the other
+  const hx = Math.max(20, xL - 120);
+  c.fillStyle = "#bfb3a2"; c.fillRect(hx, top - 120, 70, 50);
+  c.fillStyle = "#5f6670"; c.beginPath(); c.moveTo(hx - 8, top - 120); c.lineTo(hx + 35, top - 145); c.lineTo(hx + 78, top - 120); c.fill();
+  c.fillStyle = "#3e2723"; c.fillRect(hx + 28, top - 106, 14, 36);
+  const bx = Math.min(W - 90, xR + 50);
+  c.fillStyle = "#f1e3b8"; c.fillRect(bx, top - 120, 70, 50);
+  c.fillStyle = "#1d4e89"; c.fillRect(bx - 4, top - 132, 78, 14);
+  c.fillStyle = "#fff"; c.font = '13px "Yatra One", sans-serif'; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText("बजार", bx + 35, top - 125);
+  c.fillStyle = "#3e2723"; c.fillRect(bx + 10, top - 104, 16, 34); c.fillRect(bx + 44, top - 104, 16, 34);
+  c.font = '18px "Yatra One", sans-serif'; c.fillStyle = "#141414";
+  c.fillText("गाउँ", hx + 35, top - 160);
+
+  // anchors: wooden posts weighed down with stones, prayer flags strung from them
+  const flags = ["#1e63c7", "#fafafa", "#d81b3c", "#2e7d32", "#ffd21a"];
+  for (const [x, y, dir] of [[xL, top + cableY(0) / SAG * L.sagPx, -1], [xR, top + cableY(SPAN) / SAG * L.sagPx, 1]]) {
+    c.fillStyle = "#6d4c2f"; c.fillRect(x - 5, y - 4, 10, 50);
+    c.fillStyle = "#8c8c8c";
+    for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(x + dir * (8 + i * 9), y + 40 - (i % 2) * 6, 9, 0, Math.PI * 2); c.fill(); }
+    c.strokeStyle = "rgba(60,60,60,.6)"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + dir * 30, y - 10, x + dir * 60, y - 40); c.stroke();
+    for (let i = 0; i < 6; i++) {
+      const fx = x + dir * (8 + i * 9), fy = y - 3 - i * 6;
+      c.fillStyle = flags[i % 5]; c.fillRect(fx - 3, fy, 6, 7);
+    }
+  }
+}
+
+// ============================================================================
+// Game state
+// ============================================================================
+let game = null, now = 0, paused = false;
+let pressing = false, holding = false, keyHeld = false, activePointer = null, pressStart = 0;
+let best = store.get("tuin.best", 0);
+let foam = [], drops = [], floaters = [];
+
+function newTrip() {
+  const fromLeft = game.side === 0;
+  const load = { ...pick(fromLeft ? FROM_VILLAGE : FROM_BAZAAR) };
+  game.trip = {
+    load, dir: fromLeft ? 1 : -1,
+    x: fromLeft ? 0.3 : SPAN - 0.3, v: 0,
+    phi: 0, dphi: 0, arms: game.trip ? game.trip.arms : 1,
+    startAt: now + 1.0, scaredUntil: 0, graceUntil: 0, lost: false, lastSwingSign: 0,
+  };
+  $("load").hidden = false;
+  $("loadWhat").textContent = `${load.np}`;
+  $("loadWhy").textContent = load.en;
+}
+
+function massFactor() { return (RIDER_KG + (game.trip.lost ? 0 : game.trip.load.kg)) / 80; }
+
+function uphill(t) {
+  // true once you are past the lowest point and climbing toward the far bank
+  return t.dir > 0 ? t.x > LOWEST_X : t.x < LOWEST_X;
+}
+
+function pull() {
+  const t = game.trip;
+  if (!uphill(t) || now < t.startAt || now < t.scaredUntil) return;
+  const strength = 0.4 + 0.6 * t.arms;
+  const along = t.v * t.dir;                                      // current speed toward the far bank
+  const timing = 1 + TIMING_BONUS * clamp(t.dphi * t.dir, -1, 1);   // is the seat swinging forward?
+  const target = Math.max(along, Math.min(along + PULL * strength * timing / massFactor(), PULL_CAP));
+  const dv = target - along;
+  t.v = t.dir * target;
+  // Pulling while the seat swings forward calms it; pulling on the back swing kicks it further back.
+  if (t.dphi * t.dir > 0.05) t.dphi *= 0.5;
+  else t.dphi -= t.dir * (dv / SEAT_LENGTH * SWING_COUPLING + BAD_TUG_JERK);
+  t.arms = Math.max(0, t.arms - PULL_COST);
+  Sound.tug();
+}
+
+function mistake(kind) {
+  const t = game.trip;
+  game.mistakes += 1;
+  t.graceUntil = now + 2.5;            // one big swing counts as one mistake, not several
+  updateHud();
+  if (kind === "drop") {
+    t.lost = true;
+    drops.push({ x: sx(t.x), y: sy(t.x) + 70, vy: 0, item: t.load.id, splash: false });
+    floater("खस्यो!", sx(t.x), sy(t.x) - 40, "#fff");
+    $("loadWhy").textContent = "lost in the river";
+  } else {
+    t.scaredUntil = now + 1.6;
+    floater(t.load.id === "goat" ? "म्या...!" : "आमा!", sx(t.x), sy(t.x) - 40, "#ffd21a");
+    if (t.load.id === "goat") Sound.bleat(); else Sound.scared();
+  }
+  if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+  if (game.mistakes >= MAX_MISTAKES) endDay("mistakes");
+}
+
+function floater(text, x, y, color) { floaters.push({ text, x, y, color, t: 0 }); }
+
+function arrive() {
+  const t = game.trip;
+  if (!t.lost) {
+    game.delivered += 1;
+    Sound.deliver();
+    floater("पुग्यो!", sx(t.x), sy(t.x) - 50, "#ffd21a");
+  }
+  game.side = 1 - game.side;
+  updateHud();
+  newTrip();
+}
+
+// ============================================================================
+// Update
+// ============================================================================
+function update(dt) {
+  now += dt;
+  // river foam drifts by regardless
+  if (foam.length < 40) foam.push({ x: rand(0, W), y: rand(870, 995), len: rand(15, 50), speed: rand(120, 260) });
+  for (const f of foam) { f.x -= f.speed * dt; if (f.x < -60) { f.x = W + 60; f.y = rand(870, 995); } }
+  floaters.forEach(f => { f.t += dt; f.y -= 30 * dt; });
+  floaters = floaters.filter(f => f.t < 1.3);
+  for (const d of drops) {
+    if (d.y < 900) { d.vy += 900 * dt; d.y += d.vy * dt; }
+    else if (!d.splash) { d.splash = true; d.splashT = 0; Sound.splash(); }
+    else d.splashT += dt;
+  }
+  drops = drops.filter(d => !d.splash || d.splashT < 1);
+  if (!game || game.over) { Sound.set(0, 0); return; }
+
+  game.time += dt;
+  $("sun").style.width = `${clamp(game.time / DAY_SECONDS, 0, 1) * 100}%`;
+  if (game.time >= DAY_SECONDS) { endDay("sunset"); return; }
+
+  const t = game.trip;
+  holding = pressing && (!uphill(t) || now - pressStart > HOLD_DELAY);
+  if (now >= t.startAt) {
+    const slope = cableSlope(t.x);
+    let a = G * slope / (1 + slope * slope);                   // gravity along the sagging cable
+    if (Math.abs(t.v) > 0.01) a -= Math.sign(t.v) * ROLL_FRICTION;
+    const gripping = holding || now < t.scaredUntil;
+    t.brakeAccel = 0;
+    if (gripping) {
+      // braking (going down) or gripping the cable to rest (going up)
+      if (Math.abs(t.v) < BRAKE * dt * 1.5) { t.brakeAccel = -t.v / dt; t.v = 0; a = 0; }
+      else { a -= Math.sign(t.v) * BRAKE; t.brakeAccel = -Math.sign(t.v) * BRAKE; }
+    }
+    t.v += a * dt;
+    t.x += t.v * dt;
+  }
+  t.arms = Math.min(1, t.arms + ARM_REST * (holding ? 1.2 : 1) * dt);   // arms recover between tugs
+  // don't roll back past your own anchor
+  if (t.x < 0.2) { t.x = 0.2; if (t.v < 0) t.v = 0; }
+  if (t.x > SPAN - 0.2) { t.x = SPAN - 0.2; if (t.v > 0) t.v = 0; }
+
+  // the seat swings like a pendulum under the pulley
+  const accel = clamp(t.brakeAccel || 0, -BRAKE * 2, BRAKE * 2);    // only braking jolts the seat
+  game.windT -= dt;
+  if (game.windT <= 0) { game.windT = rand(...WIND_GUSTS); game.gust = rand(-1, 1) * WIND_STRENGTH; game.gustT = 1.2; floater(game.gust > 0 ? "हावा →" : "← हावा", W / 2, 200, "#fff"); }
+  let push = 0;
+  if (game.gustT > 0) { game.gustT -= dt; push += game.gust; }
+  if (t.load.wriggle && !t.lost && Math.random() < dt * 0.6) { t.dphi += rand(-0.35, 0.35); Sound.bleat(); }
+  t.dphi += (-(9.8 / SEAT_LENGTH) * Math.sin(t.phi) - accel / SEAT_LENGTH * BRAKE_SWING * Math.cos(t.phi) - SWING_DAMPING * t.dphi + push) * dt;
+  t.phi += t.dphi * dt;
+  const sgn = Math.sign(t.dphi);
+  if (sgn !== t.lastSwingSign && Math.abs(t.phi) > 0.2) Sound.creak();
+  t.lastSwingSign = sgn;
+
+  // too much swing or speed for this load
+  if (!t.lost && now > t.graceUntil && now > t.startAt) {
+    if (Math.abs(t.phi) > t.load.limit) {
+      mistake(t.load.alive ? "scared" : "drop");
+      t.phi *= 0.5; t.dphi *= 0.3;
+    } else if (t.load.alive && Math.abs(t.v) > t.load.speed) {
+      mistake("scared");
+    }
+  }
+  if (game.over) return;
+
+  // arrival
+  const goal = t.dir > 0 ? SPAN - 0.6 : 0.6;
+  if ((t.dir > 0 && t.x >= goal) || (t.dir < 0 && t.x <= goal)) arrive();
+
+  // hints
+  if (now < t.startAt) setHint("Ready… you'll slide toward the middle");
+  else if (now < t.scaredUntil) setHint("Stopped: calm them down…");
+  else if (!uphill(t)) setHint("Going down: hold to brake");
+  else setHint(game.delivered < 2 ? "Going up: tap to pull · pull on the forward swing" : "Tap to pull · hold to rest");
+
+  Sound.set(0.06, t.v);
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+function draw() {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0); ctx.restore();
+  // river foam
+  ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 3; ctx.lineCap = "round";
+  for (const f of foam) { ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + f.len, f.y + 2); ctx.stroke(); }
+  // dropped goods and their splashes
+  for (const d of drops) {
+    if (!d.splash) drawLoad(d.item, d.x, d.y, 0.9);
+    else {
+      ctx.strokeStyle = `rgba(255,255,255,${1 - d.splashT})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(d.x, 905, 20 + d.splashT * 50, 6 + d.splashT * 10, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  // the cable
+  ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.beginPath();
+  for (let x = 0; x <= SPAN; x += 0.5) { const X = sx(x), Y = sy(x); x === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); }
+  ctx.stroke();
+
+  if (game && game.trip) drawTuin(game.trip);
+  else drawTuin({ x: 0.3, phi: 0, load: FROM_VILLAGE[0], lost: false, arms: 1, dir: 1 });
+
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const f of floaters) {
+    ctx.globalAlpha = clamp(1 - f.t / 1.3, 0, 1);
+    ctx.font = '40px "Yatra One", sans-serif';
+    ctx.lineWidth = 7; ctx.strokeStyle = "#141414";
+    const x = clamp(f.x, 100, W - 100);
+    ctx.strokeText(f.text, x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawTuin(t) {
+  const px = sx(t.x), py = sy(t.x);
+  const ang = Math.atan(screenSlope(t.x));
+  // pulley block riding on the cable
+  ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+  ctx.fillStyle = "#8d6e3f"; ctx.fillRect(-14, -6, 28, 14);
+  ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(0, -2, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // ropes down to the seat, swinging by phi
+  const R = 70;
+  const seatX = px + Math.sin(t.phi) * R, seatY = py + 6 + Math.cos(t.phi) * R;
+  ctx.strokeStyle = "#6d4c41"; ctx.lineWidth = 2;
+  const perp = { x: Math.cos(t.phi), y: -Math.sin(t.phi) };
+  ctx.beginPath();
+  ctx.moveTo(px, py + 6); ctx.lineTo(seatX - perp.x * 22, seatY - perp.y * 22);
+  ctx.moveTo(px, py + 6); ctx.lineTo(seatX + perp.x * 22, seatY + perp.y * 22);
+  ctx.stroke();
+  ctx.save(); ctx.translate(seatX, seatY); ctx.rotate(-t.phi);
+  // the rider (you) in a dhaka topi, hands up on the ropes, and the load beside you
+  const face = t.dir || 1;
+  drawRider(-8 * face, 0, face);
+  if (!t.lost) drawLoad(t.load.id, 14 * face, -4, 1);
+  ctx.fillStyle = "#8d6e3f"; ctx.fillRect(-26, 0, 52, 6);            // wooden seat
+  ctx.restore();
+  // arm strength bar beside the tuin
+  if (game && game.trip === t) {
+    const bx = px + 36, by = py + 10;
+    ctx.fillStyle = "rgba(20,20,20,.75)"; ctx.fillRect(bx - 2, by - 2, 10, 46);
+    ctx.fillStyle = t.arms > 0.35 ? "#3fae5a" : "#d4001a";
+    ctx.fillRect(bx, by + 42 * (1 - t.arms), 6, 42 * t.arms);
+    // swing meter under the seat: how close you are to this load's limit
+    const frac = clamp(Math.abs(t.phi) / t.load.limit, 0, 1);
+    ctx.fillStyle = "rgba(20,20,20,.75)"; ctx.fillRect(px - 30, seatY + 28, 60, 8);
+    ctx.fillStyle = frac < 0.6 ? "#3fae5a" : frac < 0.85 ? "#f2b33d" : "#d4001a";
+    ctx.fillRect(px - 29, seatY + 29, 58 * frac, 6);
+  }
+}
+
+function drawRider(x, y, face) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "#f2efe6"; ctx.fillRect(-8, -30, 16, 30);           // daura shirt
+  ctx.fillStyle = "#3b3b3b"; ctx.fillRect(-8, -4, 22 * face, 8);      // legs on the seat
+  ctx.fillStyle = "#a86b45"; ctx.beginPath(); ctx.arc(0, -38, 8, 0, Math.PI * 2); ctx.fill();
+  // dhaka topi
+  ctx.fillStyle = "#b71c1c"; ctx.fillRect(-8, -50, 16, 8);
+  ctx.fillStyle = "#212121"; for (let i = -6; i < 8; i += 4) ctx.fillRect(i, -48, 2, 4);
+  // arms up to the ropes
+  ctx.strokeStyle = "#a86b45"; ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-6, -26); ctx.lineTo(-14, -52); ctx.moveTo(6, -26); ctx.lineTo(12, -52); ctx.stroke();
+  ctx.restore();
+}
+
+function drawLoad(id, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  if (id === "student") {
+    ctx.fillStyle = "#9fd0f0"; ctx.fillRect(-6, -22, 12, 20);
+    ctx.fillStyle = "#1e63c7"; ctx.fillRect(4, -20, 8, 14);              // school bag
+    ctx.fillStyle = "#c68a5e"; ctx.beginPath(); ctx.arc(0, -28, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#141414"; ctx.beginPath(); ctx.arc(0, -30, 6, Math.PI, 0); ctx.fill();
+  } else if (id === "granny") {
+    ctx.fillStyle = "#c62828"; ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(-7, -26); ctx.lineTo(7, -26); ctx.lineTo(9, 0); ctx.fill();
+    ctx.fillStyle = "#b07a55"; ctx.beginPath(); ctx.arc(0, -31, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#e0e0e0"; ctx.beginPath(); ctx.arc(0, -34, 6, Math.PI, 0); ctx.fill();   // grey hair
+  } else if (id === "goat") {
+    ctx.fillStyle = "#f5f1e8"; ctx.beginPath(); ctx.ellipse(0, -10, 13, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12, -18, 5, 6, 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#6d4c41"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(12, -23); ctx.lineTo(9, -30); ctx.moveTo(15, -23); ctx.lineTo(16, -30); ctx.stroke();
+  } else if (id === "rice") {
+    ctx.fillStyle = "#c8a165"; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-10, -24, 20, 24, 5) : ctx.rect(-10, -24, 20, 24); ctx.fill();
+    ctx.strokeStyle = "#8d6e3f"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-10, -12); ctx.lineTo(10, -12); ctx.stroke();
+  } else if (id === "gas") {
+    ctx.fillStyle = "#c62828"; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-8, -26, 16, 26, 6) : ctx.rect(-8, -26, 16, 26); ctx.fill();
+    ctx.fillStyle = "#555"; ctx.fillRect(-3, -31, 6, 5);
+  } else if (id === "medicine") {
+    ctx.fillStyle = "#2e7d32"; ctx.fillRect(-9, -16, 18, 16);
+    ctx.fillStyle = "#fff"; ctx.fillRect(-2, -13, 4, 10); ctx.fillRect(-5, -10, 10, 4);
+  } else if (id === "mail") {
+    ctx.fillStyle = "#8d6e3f"; ctx.fillRect(-9, -14, 18, 14);
+    ctx.fillStyle = "#fffdf6"; ctx.fillRect(-6, -18, 12, 6);
+  }
+  ctx.restore();
+}
+
+let lastT = performance.now();
+function frame(ts) {
+  const dt = Math.min((ts - lastT) / 1000, 1 / 30);
+  lastT = ts;
+  if (!paused) update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Input: tap = pull (going up), hold = brake / grip
+// ============================================================================
+const stage = $("stage");
+function pressDown() {
+  if (!game || game.over || paused) return;
+  Sound.init();
+  pressing = true;
+  pressStart = now;
+  pull();
+}
+stage.addEventListener("pointerdown", e => {
+  if (activePointer !== null) return;
+  activePointer = e.pointerId;
+  stage.setPointerCapture(e.pointerId);
+  pressDown();
+});
+function pointerUp(e) {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  pressing = keyHeld;
+}
+stage.addEventListener("pointerup", pointerUp);
+stage.addEventListener("pointercancel", pointerUp);
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat) return;
+  if (!$("startScreen").hidden || !$("resultScreen").hidden || !$("howScreen").hidden) return;
+  e.preventDefault(); keyHeld = true; pressDown();
+});
+window.addEventListener("keyup", e => {
+  if (e.code !== "Space") return;
+  e.preventDefault(); keyHeld = false; pressing = activePointer !== null;
+});
+
+// ============================================================================
+// Flow
+// ============================================================================
+function setHint(text) {
+  const el = $("hint");
+  if (!text) { el.classList.add("hide"); return; }
+  if (el.textContent !== text) el.textContent = text;
+  el.classList.remove("hide");
+}
+
+function updateHud() {
+  const d = game ? game.delivered : 0, m = game ? game.mistakes : 0;
+  $("delivered").textContent = `पुर्‍याइयो ${toNep(d)}`;
+  $("mistakes").textContent = "●".repeat(Math.max(0, MAX_MISTAKES - m)) + "○".repeat(Math.min(MAX_MISTAKES, m));
+}
+
+function start() {
+  Sound.init();
+  $("startScreen").hidden = true;
+  $("resultScreen").hidden = true;
+  pressing = false; holding = false; keyHeld = false; activePointer = null;
+  drops = []; floaters = [];
+  game = { side: 0, delivered: 0, mistakes: 0, time: 0, over: false, trip: null, windT: rand(...WIND_GUSTS), gust: 0, gustT: 0 };
+  newTrip();
+  updateHud();
+}
+
+function endDay(reason) {
+  if (game.over) return;
+  game.over = true;
+  pressing = false; holding = false;
+  Sound.set(0, 0);
+  setHint("");
+  $("load").hidden = true;
+  const newRecord = game.delivered > best;
+  if (newRecord) { best = game.delivered; store.set("tuin.best", best); }
+  const [, title, line] = RANKS.find(([n]) => game.delivered >= n);
+  setTimeout(() => {
+    $("resultTitle").textContent = title;
+    $("resultScore").textContent = `${toNep(game.delivered)} पटक`;
+    $("resultNote").textContent = `${line} ${game.delivered} load${game.delivered === 1 ? "" : "s"} delivered${reason === "sunset" ? " before sunset" : ", then the day ended after 3 mistakes"}. Best ${best}.`;
+    $("newRecord").hidden = !newRecord || game.delivered === 0;
+    $("resultScreen").hidden = false;
+  }, reason === "mistakes" ? 1200 : 300);
+}
+
+function shareText() {
+  return `🚡 तुइन: I delivered ${toNep(game.delivered)} loads (${game.delivered}) across the river before sunset. Can you do better?`;
+}
+
+let howFromStart = false;
+function openHow(fromStart) {
+  howFromStart = fromStart;
+  if (!fromStart && game && !game.over && !paused) { paused = true; pressing = false; holding = false; keyHeld = false; activePointer = null; Sound.set(0, 0); }
+  $("startScreen").hidden = true;
+  $("howScreen").hidden = false;
+}
+function closeHow() {
+  $("howScreen").hidden = true;
+  if (howFromStart) { $("startScreen").hidden = false; return; }
+  if (paused) { paused = false; lastT = performance.now(); }
+}
+
+$("startBtn").addEventListener("click", start);
+$("againBtn").addEventListener("click", start);
+$("howBtn").addEventListener("click", () => openHow(true));
+$("helpBtn").addEventListener("click", () => {
+  if (!$("resultScreen").hidden || !$("howScreen").hidden) return;
+  openHow(!$("startScreen").hidden || !game || game.over);
+});
+$("howClose").addEventListener("click", closeHow);
+$("shareBtn").addEventListener("click", async () => {
+  const text = shareText();
+  const url = location.href.split("#")[0];
+  try {
+    if (navigator.share) await navigator.share({ title: "Tuin", text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      $("shareBtn").textContent = "Copied!";
+      setTimeout(() => ($("shareBtn").textContent = "Share"), 1500);
+    }
+  } catch (_) { /* share cancelled */ }
+});
+$("mute").addEventListener("click", () => {
+  Sound.muted = !Sound.muted;
+  $("mute").textContent = Sound.muted ? "🔇" : "🔊";
+  if (Sound.ctx) Sound.set(0, 0);
+});
+
+resize();
+document.fonts.ready.then(resize);
+updateHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
