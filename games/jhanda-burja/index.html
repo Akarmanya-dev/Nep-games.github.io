@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Jhanda Burja</title>
+  <meta name="description" content="Tihar street dice: bet on झन्डा, बुर्जा, इँट, पान, सुरत, चिडी — or be the house. Play money only.">
+  <meta name="theme-color" content="#ffd21a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Baloo+2:wght@600;800&family=Mukta:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    /* Same signboard system as the other games; the scene is a street square on a Tihar night. */
+    :root {
+      --ink: #10212b;
+      --muted: #3f5a67;
+      --sign: #ffd21a;
+      --sign-red: #d4001a;
+      --sign-black: #141414;
+      --paper: #fffdf6;
+      --street: #2d2723;
+    }
+    * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--street);
+      color: var(--ink);
+      font-family: "Mukta", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+    .shop { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* --- signboard ----------------------------------------------------- */
+    .sign {
+      background: var(--sign);
+      border-bottom: 6px solid var(--sign-red);
+      box-shadow: 0 4px 0 rgba(0, 0, 0, .12);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 16px 8px;
+      position: relative; z-index: 2;
+    }
+    .sign .back { color: var(--sign-black); font-weight: 800; text-decoration: none; font-size: .95rem; }
+    .sign .board { text-align: center; line-height: 1.2; }
+    .sign .np {
+      display: block;
+      font-family: "Yatra One", "Mukta", sans-serif;
+      color: var(--sign-red);
+      font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+      text-shadow: 1px 1px 0 rgba(0, 0, 0, .15);
+    }
+    .sign .en {
+      display: block;
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      color: var(--sign-black);
+      font-size: clamp(.62rem, 2.3vw, .9rem);
+      letter-spacing: .12em; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .sign .tools { justify-self: end; display: flex; gap: 8px; }
+    .sign .round {
+      background: var(--sign-black); color: var(--sign);
+      border: 0; border-radius: 999px;
+      width: 36px; height: 36px; font-size: 1rem; cursor: pointer;
+    }
+
+    /* --- stage --------------------------------------------------------- */
+    .stage { position: relative; flex: 1; min-height: 0; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+    .hud {
+      position: absolute; left: 0; right: 0; top: 10px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 0 16px; pointer-events: none;
+    }
+    .chip {
+      font-family: "Baloo 2", sans-serif; font-weight: 800;
+      background: var(--sign-black); color: var(--sign);
+      padding: 2px 12px; border-radius: 8px; font-size: 1rem; white-space: nowrap;
+    }
+    .bar {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      pointer-events: none;
+    }
+    .msg {
+      background: rgba(20, 20, 20, .85); color: var(--sign);
+      font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: .98rem;
+      padding: 5px 14px; border-radius: 999px; text-align: center; max-width: 100%;
+    }
+    .msg:empty { display: none; }
+    .actions { display: flex; gap: 8px; pointer-events: auto; }
+    .actions[hidden] { display: none; }
+    .act {
+      border: 0; border-radius: 10px; padding: 10px 16px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.05rem "Baloo 2", sans-serif; cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+      touch-action: none;
+    }
+    .act:active { box-shadow: none; transform: translateY(2px); }
+    .act.dark { background: var(--sign-black); color: var(--sign); }
+    .act[hidden] { display: none; }
+
+    /* --- overlays ------------------------------------------------------ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(16, 12, 10, .6);
+      backdrop-filter: blur(3px);
+      display: grid; place-items: center;
+      padding: 16px;
+      z-index: 10;
+      touch-action: manipulation;
+      overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .signpanel {
+      width: 100%; max-width: 440px;
+      background: var(--sign);
+      border: 6px solid var(--sign-red);
+      outline: 3px solid var(--sign-black);
+      border-radius: 10px;
+      padding: 20px 22px 20px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
+    }
+    .signpanel h1 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 2.8rem; line-height: 1.05; }
+    .signpanel h2 { font-family: "Yatra One", sans-serif; font-weight: 400; color: var(--sign-red); font-size: 2.1rem; line-height: 1.15; }
+    .signpanel .sub { font-family: "Baloo 2", sans-serif; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .85rem; }
+    .signpanel ol { text-align: left; margin: 12px 0 4px; padding-left: 1.3em; font-weight: 600; }
+    .signpanel li { margin: 5px 0; }
+    .signpanel .note { font-weight: 600; margin-top: 6px; }
+    .signpanel .small { font-size: .85rem; margin-top: 8px; }
+    .signpanel .big {
+      font-family: "Yatra One", sans-serif; font-size: 3.6rem; line-height: 1; margin: 6px 0 0;
+      color: #fff; -webkit-text-stroke: 3px var(--sign-black); paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--sign-black);
+    }
+    .signpanel .record { display: inline-block; background: var(--sign-red); color: #fff; font-weight: 800; padding: 2px 12px; border-radius: 999px; margin-top: 6px; }
+    .signpanel .record[hidden] { display: none; }
+    .fact {
+      margin-top: 12px; text-align: left;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 10px;
+      padding: 10px 12px; font-size: .92rem; line-height: 1.4;
+    }
+    .btn {
+      display: block; width: 100%;
+      margin-top: 12px; padding: 12px;
+      border: 0; border-radius: 10px;
+      background: var(--sign-red); color: #fff;
+      font: 800 1.15rem "Baloo 2", sans-serif;
+      cursor: pointer;
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .25);
+    }
+    .btn:active { box-shadow: none; transform: translateY(2px); }
+    .btn.secondary { background: var(--sign-black); color: var(--sign); }
+    .text-link {
+      display: block; width: 100%; margin-top: 10px; background: none; border: 0; cursor: pointer;
+      font: 800 1.05rem "Baloo 2", sans-serif; color: var(--sign-black); text-decoration: underline;
+    }
+    .signpanel.guide { max-width: 540px; max-height: calc(100dvh - 32px); overflow-y: auto; text-align: left; }
+    .guide h2, .guide .sub { text-align: center; }
+    .step {
+      display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 10px;
+      padding: 10px 12px; margin-top: 10px;
+    }
+    .step .pic { display: grid; place-items: center; min-height: 56px; font-size: 1.6rem; }
+    .step p { margin: 2px 0 0; font-size: .95rem; line-height: 1.35; }
+    .step h3 { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.05rem; line-height: 1.2; }
+    table.pay { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: .92rem; }
+    table.pay td { border-bottom: 1px solid #ccc; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+<div class="shop">
+  <header class="sign">
+    <a class="back" href="../../index.html">← खेलहरू</a>
+    <div class="board">
+      <span class="np">झन्डा बुर्जा</span>
+      <span class="en">Tihar street dice</span>
+    </div>
+    <div class="tools">
+      <button class="round" id="helpBtn" aria-label="How to play">?</button>
+      <button class="round" id="mute" aria-label="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="hud">
+      <span class="chip" id="round">पालो ०/१५</span>
+      <span class="chip" id="role"></span>
+      <span class="chip" id="bank">सेल ०</span>
+    </div>
+    <div class="bar">
+      <div class="msg" id="msg"></div>
+      <div class="actions" id="actions">
+        <button class="act dark" id="undoBtn">↺ फिर्ता</button>
+        <button class="act" id="goBtn">हान · Roll</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="signpanel">
+    <h1>झन्डा बुर्जा</h1>
+    <div class="sub">Jhanda Burja · Tihar street dice</div>
+    <ol>
+      <li>Six dice, six symbols: <b>झन्डा, बुर्जा, इँट, पान, सुरत, चिडी</b>.</li>
+      <li>Bet on symbols. The host shakes the dice in a steel tumbler and lifts it.</li>
+      <li>Your symbol on <b>2 or more dice</b>: you get your bet back plus your bet × the number of dice. On 0 or 1 die, the house takes it.</li>
+      <li>15 rolls in an evening. Or swap places and <b>be the house</b> yourself.</li>
+    </ol>
+    <p class="small">सेलरोटीको खेल · Play money only. We play with sel roti, never real money.</p>
+    <button class="btn" id="playerBtn">दाउ लगाऔं · Place bets</button>
+    <button class="btn secondary" id="houseBtn">साहु बनौं · Be the house</button>
+    <button class="text-link" id="howBtn">कसरी खेल्ने? · How to play</button>
+  </div>
+</div>
+
+<div class="overlay" id="howScreen" hidden>
+  <div class="signpanel guide">
+    <h2>कसरी खेल्ने?</h2>
+    <div class="sub">How to play</div>
+    <div class="step">
+      <div class="pic">🎲</div>
+      <div><h3>The dice and the mat</h3><p>Each of the <b>6 dice</b> has the same six symbols: <b>झन्डा</b> (flag), <b>बुर्जा</b> (crown), <b>इँट</b> (diamond), <b>पान</b> (heart), <b>सुरत</b> (spade) and <b>चिडी</b> (club). The mat has one square for each symbol.</p></div>
+    </div>
+    <div class="step">
+      <div class="pic">👆</div>
+      <div><h3>Placing bets (दाउ लगाऔं)</h3><p><b>Tap a symbol</b> on the mat to bet 1 sel roti on it. Tap again for more, and bet on as many symbols as you like. <b>↺ फिर्ता</b> takes your bets back. Then press <b>हान · Roll</b>.</p></div>
+    </div>
+    <div class="step">
+      <div class="pic">🥤</div>
+      <div><h3>How bets are paid</h3>
+        <table class="pay">
+          <tr><td>Your symbol on 0 or 1 die</td><td>the house takes your bet</td></tr>
+          <tr><td>On 2 dice</td><td>bet back + 2 × bet</td></tr>
+          <tr><td>On 3 dice</td><td>bet back + 3 × bet</td></tr>
+          <tr><td>…up to 6 dice</td><td>bet back + 6 × bet</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="step">
+      <div class="pic">🏦</div>
+      <div><h3>Being the house (साहु बनौं)</h3><p>The neighbors bet. <b>Hold</b> the shake button (or Space) to rattle the dice in the tumbler, then <b>let go</b> to slam it down. You collect every losing bet and pay every winner. Run out of sel roti and the house goes broke: <b>टाट पल्टियो!</b></p></div>
+    </div>
+    <div class="step">
+      <div class="pic">📈</div>
+      <div><h3>Who wins in the long run?</h3><p>With these rules the house keeps about <b>14 of every 100</b> sel roti bet, over time. That's why the host is always smiling. Try both sides and see.</p></div>
+    </div>
+    <p class="small" style="margin-top:10px">Rules follow the common Nepali version (The Himalayan Times; Asanchowk). Some streets pay 1 matching die too.</p>
+    <button class="btn" id="howClose">बुझें! · Got it</button>
+  </div>
+</div>
+
+<div class="overlay" id="resultScreen" hidden>
+  <div class="signpanel">
+    <h2 id="resultTitle"></h2>
+    <div class="big" id="resultScore"></div>
+    <p class="note" id="resultNote"></p>
+    <span class="record" id="newRecord" hidden>नयाँ रेकर्ड! New record!</span>
+    <div class="fact" id="resultFact"></div>
+    <p class="small">Play money only. शुभ दीपावली! Happy Tihar!</p>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn secondary" id="againBtn">फेरि खेलौं · Play again</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Design knobs -- tweak these first.
+// Rules follow the common Nepali version (The Himalayan Times; Asanchowk): six dice,
+// a bet wins only if its symbol shows on 2 or more dice, and then pays bet × matching dice.
+// ============================================================================
+const DICE = 6;
+const MIN_MATCH = 2;                // a bet wins only if its symbol shows on at least this many dice
+const ROUNDS = 15;                  // rolls in one evening
+const PLAYER_BANK = 30;             // your sel roti when you bet
+const HOUSE_BANK = 60;              // your sel roti when you're the house
+const SHAKE_MIN = 0.4;              // the house must shake at least this long (s)
+
+const SYMBOLS = [
+  { id: "jhanda", np: "झन्डा", en: "flag" },
+  { id: "burja", np: "बुर्जा", en: "crown" },
+  { id: "eet", np: "इँट", en: "diamond" },
+  { id: "paan", np: "पान", en: "heart" },
+  { id: "surat", np: "सुरत", en: "spade" },
+  { id: "chidi", np: "चिडी", en: "club" },
+];
+// The neighbors who bet around the mat (their chips carry these colors).
+const NEIGHBORS = [
+  { np: "काका", color: "#b71c1c", most: 3, fav: 1 },
+  { np: "भाउजू", color: "#8e24aa", most: 2, fav: 3 },
+  { np: "भाइ", color: "#2e7d32", most: 2, fav: 0 },
+  { np: "साथी", color: "#ef6c00", most: 2 },
+];
+const YOU_COLOR = "#1e63c7";
+const HOST_LINES = ["लगाउनुस् लगाउनुस्!", "खोल्छु है!", "जय लक्ष्मी!"];
+
+const $ = id => document.getElementById(id);
+const toNep = n => String(n).replace(/\d/g, d => "०१२३४५६७८९"[d]);
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+
+// What one bet returns (including the stake) when its symbol shows on `matches` dice.
+const payout = (bet, matches) => matches >= MIN_MATCH ? bet + bet * matches : 0;
+
+// The long-run share of each bet the house keeps, from the dice odds (about 14%).
+const HOUSE_EDGE = (() => {
+  let ev = 0;
+  const C = (n, k) => { let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; };
+  for (let k = 0; k <= DICE; k++) ev += C(DICE, k) * Math.pow(1 / 6, k) * Math.pow(5 / 6, DICE - k) * payout(1, k);
+  return 1 - ev;
+})();
+
+// ============================================================================
+// Sound: dice rattling in a steel tumbler, the slam, chips, firecrackers
+// ============================================================================
+const Sound = {
+  ctx: null, muted: false, noise: null,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    const len = this.ctx.sampleRate;
+    this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  },
+  burst(dur, type, freq, vol, delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.ctx.destination); src.start(t, Math.random() * 0.5); src.stop(t + dur);
+  },
+  tone(f0, f1, dur, vol, type = "sine", delay = 0) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime + delay;
+    const o = this.ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t + dur);
+  },
+  rattle() { this.burst(0.04, "bandpass", 3200 + Math.random() * 2000, 0.18); this.tone(2400 + Math.random() * 800, 1800, 0.04, 0.03, "triangle"); },
+  slam() { this.tone(160, 60, 0.18, 0.4); this.burst(0.12, "lowpass", 900, 0.35); this.tone(1800, 1500, 0.3, 0.04, "triangle", 0.02); },
+  chip() { this.tone(500, 380, 0.06, 0.08, "triangle"); },
+  win() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, f, 0.16, 0.08, "triangle", i * 0.07)); },
+  lose() { this.tone(330, 220, 0.3, 0.08, "triangle"); },
+  cracker() { this.burst(0.25, "lowpass", 1400, 0.22); this.burst(0.08, "highpass", 4000, 0.1, 0.02); },
+};
+
+// ============================================================================
+// Canvas, layout and the street
+// ============================================================================
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const bg = document.createElement("canvas"), bgc = bg.getContext("2d");
+let scale = 1, dpr = 1, W = 600;
+let PLATE = { x: 300, y: 220, r: 110 };
+let tiles = [];                      // { x, y, w, h } for each symbol square on the mat
+let MAT = { x: 0, y: 0, w: 0, h: 0 };
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scale = r.height / 1000;
+  W = r.width / scale;
+  for (const c of [canvas, bg]) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  bgc.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  PLATE = { x: W / 2, y: 225, r: 118 };
+  const mw = Math.min(W - 36, 620);
+  const cols = W < 700 ? 2 : 3, rows = 6 / cols;
+  const mh = cols === 2 ? 470 : 380;
+  MAT = { x: W / 2 - mw / 2, y: 385, w: mw, h: mh };
+  const pad = 12, tw = (mw - pad * (cols + 1)) / cols, th = (mh - pad * (rows + 1)) / rows;
+  tiles = SYMBOLS.map((s, i) => ({ x: MAT.x + pad + (i % cols) * (tw + pad), y: MAT.y + pad + Math.floor(i / cols) * (th + pad), w: tw, h: th }));
+  drawBackground();
+}
+window.addEventListener("resize", resize);
+
+const hash = k => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+
+function drawBackground() {
+  const c = bgc;
+  // stone paving of a chowk at night
+  c.fillStyle = "#2d2723"; c.fillRect(0, 0, W, 1000);
+  for (let y = 0, row = 0; y < 1000; y += 46, row++) for (let x = -(row % 2) * 30, k = 0; x < W; x += 60, k++) {
+    c.fillStyle = `rgba(${90 + hash(row * 50 + k) * 30}, ${78 + hash(row * 50 + k + 7) * 20}, ${66}, .55)`;
+    c.fillRect(x + 2, y + 2, 56, 42);
+  }
+  // jhilimili string lights across the top
+  const colors = ["#ff5252", "#ffd740", "#69f0ae", "#40c4ff", "#e040fb"];
+  for (const yoff of [24, 60]) for (let i = 0; i <= 34; i++) {
+    const x = i / 34 * W, y = yoff + Math.sin(i / 34 * Math.PI) * 18;
+    const col = colors[i % colors.length];
+    const gl = c.createRadialGradient(x, y, 0, x, y, 10); gl.addColorStop(0, col); gl.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = gl; c.beginPath(); c.arc(x, y, 10, 0, Math.PI * 2); c.fill();
+  }
+  // brass plate where the tumbler lands
+  const pg = c.createRadialGradient(PLATE.x - 30, PLATE.y - 30, 10, PLATE.x, PLATE.y, PLATE.r);
+  pg.addColorStop(0, "#f3d27a"); pg.addColorStop(1, "#a7792a");
+  c.fillStyle = pg; c.beginPath(); c.arc(PLATE.x, PLATE.y, PLATE.r, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = "#7a5718"; c.lineWidth = 4; c.beginPath(); c.arc(PLATE.x, PLATE.y, PLATE.r - 8, 0, Math.PI * 2); c.stroke();
+  // the red cloth mat
+  c.fillStyle = "#9e1b24"; c.fillRect(MAT.x, MAT.y, MAT.w, MAT.h);
+  c.strokeStyle = "#ffd21a"; c.lineWidth = 4; c.strokeRect(MAT.x + 5, MAT.y + 5, MAT.w - 10, MAT.h - 10);
+  // a few diyos along the mat
+  for (const [x, y] of [[MAT.x - 2, MAT.y - 14], [MAT.x + MAT.w + 2, MAT.y - 14], [MAT.x - 2, MAT.y + MAT.h + 14], [MAT.x + MAT.w + 2, MAT.y + MAT.h + 14]]) {
+    c.fillStyle = "#8d4b24"; c.beginPath(); c.ellipse(x, y, 9, 5, 0, 0, Math.PI * 2); c.fill();
+  }
+}
+
+// ============================================================================
+// Symbols
+// ============================================================================
+function drawSymbol(id, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  if (id === "jhanda") {
+    ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-12, 18); ctx.lineTo(-12, -20); ctx.stroke();
+    ctx.fillStyle = "#d50000"; ctx.beginPath(); ctx.moveTo(-11, -20); ctx.lineTo(16, -10); ctx.lineTo(-11, 0); ctx.closePath(); ctx.fill();
+  } else if (id === "burja") {
+    ctx.fillStyle = "#f9a825";
+    ctx.beginPath(); ctx.moveTo(-18, 12); ctx.lineTo(-18, -8); ctx.lineTo(-9, 2); ctx.lineTo(0, -16); ctx.lineTo(9, 2); ctx.lineTo(18, -8); ctx.lineTo(18, 12); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#d50000"; for (const dx of [-9, 0, 9]) { ctx.beginPath(); ctx.arc(dx, 7, 2.5, 0, Math.PI * 2); ctx.fill(); }
+  } else if (id === "eet") {
+    ctx.fillStyle = "#d50000"; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(14, 0); ctx.lineTo(0, 18); ctx.lineTo(-14, 0); ctx.closePath(); ctx.fill();
+  } else if (id === "paan") {
+    ctx.fillStyle = "#d50000"; ctx.beginPath(); ctx.arc(-7, -5, 8, 0, Math.PI * 2); ctx.arc(7, -5, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-15, -2); ctx.lineTo(0, 16); ctx.lineTo(15, -2); ctx.fill();
+  } else if (id === "surat") {
+    ctx.fillStyle = "#141414"; ctx.beginPath(); ctx.arc(-7, 3, 8, 0, Math.PI * 2); ctx.arc(7, 3, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-15, 1); ctx.lineTo(0, -17); ctx.lineTo(15, 1); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(-5, 17); ctx.lineTo(5, 17); ctx.fill();
+  } else if (id === "chidi") {
+    ctx.fillStyle = "#141414";
+    for (const [dx, dy] of [[0, -9], [-8, 3], [8, 3]]) { ctx.beginPath(); ctx.arc(dx, dy, 7, 0, Math.PI * 2); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(-5, 17); ctx.lineTo(5, 17); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ============================================================================
+// Game state
+// ============================================================================
+let game = null, now = 0, paused = false;
+let floaters = [], bubbles = [];
+let best = store.get("jhanda.best", { player: null, house: null });
+
+function newEvening(mode) {
+  game = {
+    mode,                               // "player" (you bet) or "house" (you're the host)
+    bank: mode === "house" ? HOUSE_BANK : PLAYER_BANK,
+    round: 0, over: false,
+    phase: "bet", bets: [], dice: [], shakeFrom: 0, liftAt: 0, doneAt: 0,
+    totalBet: 0, totalBack: 0, holding: false,
+  };
+  startRound();
+}
+
+function startRound() {
+  const g = game;
+  g.phase = "bet";
+  g.bets = [];
+  g.dice = [];
+  g.round += 1;
+  g.betsDoneAt = now + rand(0.6, 1.4);
+  g.neighborsDone = false;
+  updateHud(); updateActions();
+  if (g.mode === "player") setMsg("Tap symbols on the mat to bet, then press Roll");
+  else setMsg("The neighbors are betting… then hold to shake, let go to slam");
+  if (Math.random() < 0.5) say(HOST_LINES[0]);
+}
+
+function neighborBets() {
+  const g = game;
+  for (let n = 0; n < NEIGHBORS.length; n++) {
+    const nb = NEIGHBORS[n];
+    const picks = 1 + (Math.random() < 0.4 ? 1 : 0);
+    for (let k = 0; k < picks; k++) {
+      const sym = nb.fav !== undefined && Math.random() < 0.5 ? nb.fav : Math.floor(Math.random() * 6);
+      addBet(n, sym, 1 + Math.floor(Math.random() * nb.most));
+    }
+  }
+  g.neighborsDone = true;
+  Sound.chip();
+}
+
+function addBet(who, sym, amt) {
+  const b = game.bets.find(b => b.who === who && b.sym === sym);
+  if (b) b.amt += amt; else game.bets.push({ who, sym, amt });
+}
+
+function playerBet(sym) {
+  const g = game;
+  if (g.mode !== "player" || g.phase !== "bet" || g.bank < 1) return;
+  g.bank -= 1;
+  addBet("you", sym, 1);
+  Sound.chip();
+  updateHud(); updateActions();
+}
+
+function undoBets() {
+  const g = game;
+  if (g.phase !== "bet") return;
+  for (const b of g.bets.filter(b => b.who === "you")) g.bank += b.amt;
+  g.bets = g.bets.filter(b => b.who !== "you");
+  updateHud(); updateActions();
+}
+
+// ============================================================================
+// Shaking, slamming, lifting
+// ============================================================================
+function startShake() {
+  const g = game;
+  if (g.phase !== "bet") return;
+  if (!g.neighborsDone) neighborBets();
+  if (g.mode === "player" && !g.bets.some(b => b.who === "you")) { setMsg("Tap a symbol to bet first"); return; }
+  g.phase = "shake";
+  g.shakeFrom = now;
+  g.holding = true;
+  updateActions();
+  setMsg(g.mode === "house" ? "Keep holding… let go to slam it down" : "");
+}
+
+function slam() {
+  const g = game;
+  if (g.phase !== "shake" || now - g.shakeFrom < SHAKE_MIN) { if (g.phase === "shake") g.slamWhenReady = true; return; }
+  g.holding = false; g.slamWhenReady = false;
+  g.dice = Array.from({ length: DICE }, (_, i) => ({
+    sym: Math.floor(Math.random() * 6),
+    x: PLATE.x + (i % 3 - 1) * 46 + rand(-6, 6), y: PLATE.y + (Math.floor(i / 3) - 0.5) * 48 + rand(-6, 6), rot: rand(-0.4, 0.4),
+  }));
+  g.phase = "slammed";
+  g.liftAt = now + 0.7;
+  Sound.slam();
+  if (navigator.vibrate) navigator.vibrate(30);
+  if (Math.random() < 0.6) say(HOST_LINES[1]);
+}
+
+function settle() {
+  const g = game;
+  const counts = [0, 0, 0, 0, 0, 0];
+  for (const d of g.dice) counts[d.sym]++;
+  g.counts = counts;
+  const before = g.bank;
+  for (const b of g.bets) {
+    const back = payout(b.amt, counts[b.sym]);
+    if (b.who === "you") { g.bank += back; g.totalBet += b.amt; g.totalBack += back; }
+    else if (g.mode === "house") g.bank += b.amt - back;       // the house keeps losing bets and pays winners
+  }
+  // labels on the mat for every symbol that came up twice or more
+  counts.forEach((n, i) => { if (n >= MIN_MATCH) floater(`×${toNep(n)}`, tiles[i].x + tiles[i].w / 2, tiles[i].y + 18, "#ffd21a"); });
+  const delta = g.bank - before;
+  if (g.mode === "player") {
+    const staked = g.bets.filter(b => b.who === "you").reduce((a, b) => a + b.amt, 0);
+    const won = g.bank - before;
+    setMsg(won > 0 ? `तपाईंले जित्नुभयो! ${toNep(won)} back on ${toNep(staked)} bet` : "साहुले खायो! The house takes it");
+    if (won > staked) Sound.win(); else if (won === 0) Sound.lose(); else Sound.chip();
+    if (won > 0) floater(`+${toNep(won)}`, W / 2, MAT.y - 20, "#ffd21a", true);
+  } else {
+    setMsg(delta >= 0 ? `The house collects ${toNep(delta)}` : `The house pays out ${toNep(-delta)}`);
+    if (delta > 0) Sound.win(); else if (delta < 0) Sound.lose();
+    floater(`${delta >= 0 ? "+" : ""}${toNep(delta)}`, W / 2, MAT.y - 20, delta >= 0 ? "#ffd21a" : "#ff8a80", true);
+    if (delta > 4) say(HOST_LINES[2]);
+  }
+  g.phase = "done";
+  g.doneAt = now + 2.2;
+  updateHud(); updateActions();
+}
+
+function nextRound() {
+  const g = game;
+  if (g.mode === "house" && g.bank < 0) { endEvening("broke"); return; }
+  if (g.mode === "player" && g.bank <= 0) { endEvening("broke"); return; }
+  if (g.round >= ROUNDS) { endEvening("done"); return; }
+  startRound();
+}
+
+// ============================================================================
+// Update and drawing
+// ============================================================================
+function floater(text, x, y, color, big = false) { floaters.push({ text, x, y, color, big, t: 0 }); }
+function say(text) { bubbles = [{ text, t: 0 }]; }
+
+let nextCracker = 3, lastRattle = 0;
+function update(dt) {
+  now += dt;
+  floaters.forEach(f => { f.t += dt; f.y -= 25 * dt; });
+  floaters = floaters.filter(f => f.t < (f.big ? 1.8 : 1.4));
+  bubbles.forEach(b => b.t += dt);
+  bubbles = bubbles.filter(b => b.t < 2.2);
+  if (now > nextCracker) { nextCracker = now + rand(5, 12); if (game && !game.over) Sound.cracker(); }
+  if (!game || game.over) return;
+  const g = game;
+  if (g.phase === "bet") {
+    if (!g.neighborsDone && now > g.betsDoneAt) neighborBets();
+  } else if (g.phase === "shake") {
+    if (now - lastRattle > 0.07) { lastRattle = now; Sound.rattle(); }
+    // the host (in your mode) shakes for a moment and slams by himself
+    if (g.mode === "player" && now - g.shakeFrom > 1.0) slam();
+    if (g.slamWhenReady && now - g.shakeFrom >= SHAKE_MIN) slam();
+  } else if (g.phase === "slammed" && now > g.liftAt) {
+    g.phase = "lifting"; g.liftFrom = now;
+  } else if (g.phase === "lifting" && now - g.liftFrom > 0.5) {
+    settle();
+  } else if (g.phase === "done" && now > g.doneAt) nextRound();
+}
+
+function drawTumbler(x, y, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y);
+  const gr = ctx.createLinearGradient(-62, 0, 62, 0);
+  gr.addColorStop(0, "#8e9399"); gr.addColorStop(0.35, "#eef1f4"); gr.addColorStop(0.6, "#b9bec4"); gr.addColorStop(1, "#7c8187");
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.moveTo(-70, 40); ctx.lineTo(-58, -80); ctx.lineTo(58, -80); ctx.lineTo(70, 40); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#d7dbe0"; ctx.beginPath(); ctx.ellipse(0, -80, 58, 12, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#6d7278"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, 40, 70, 14, 0, 0, Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+function drawDie(d, highlight) {
+  ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.rot);
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(-19, -16, 42, 42);
+  ctx.fillStyle = "#fffdf6"; ctx.strokeStyle = highlight ? "#ffd21a" : "#555"; ctx.lineWidth = highlight ? 4 : 2;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-21, -21, 42, 42, 8) : ctx.rect(-21, -21, 42, 42); ctx.fill(); ctx.stroke();
+  drawSymbol(SYMBOLS[d.sym].id, 0, 1, 0.75);
+  ctx.restore();
+}
+
+function drawSelRoti(x, y, n, color) {
+  ctx.strokeStyle = "#7b4a1e"; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#b9783a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x + 8, y - 8, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.font = '800 15px "Baloo 2", sans-serif'; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.lineWidth = 4; ctx.strokeStyle = "#141414"; ctx.fillStyle = "#fff";
+  ctx.strokeText(toNep(n), x + 14, y + 2); ctx.fillText(toNep(n), x + 14, y + 2);
+}
+
+function draw() {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0); ctx.restore();
+  const g = game;
+  // diyo flames
+  for (const [x, y] of [[MAT.x - 2, MAT.y - 14], [MAT.x + MAT.w + 2, MAT.y - 14], [MAT.x - 2, MAT.y + MAT.h + 14], [MAT.x + MAT.w + 2, MAT.y + MAT.h + 14]]) {
+    const f = 1 + Math.sin(now * 12 + x) * 0.15;
+    ctx.fillStyle = "rgba(255, 200, 80, .35)"; ctx.beginPath(); ctx.arc(x, y - 6, 18 * f, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffcc33"; ctx.beginPath(); ctx.ellipse(x, y - 7, 3, 6 * f, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // the mat squares, with bets on them
+  SYMBOLS.forEach((s, i) => {
+    const t = tiles[i];
+    const hit = g && (g.phase === "done") && g.counts && g.counts[i] >= MIN_MATCH;
+    ctx.fillStyle = hit ? "#fff3b0" : "#fbf3e2";
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(t.x, t.y, t.w, t.h, 10) : ctx.rect(t.x, t.y, t.w, t.h); ctx.fill();
+    if (hit) { ctx.strokeStyle = "#ffd21a"; ctx.lineWidth = 5; ctx.stroke(); }
+    const canTap = g && g.mode === "player" && g.phase === "bet";
+    if (canTap) { ctx.strokeStyle = `rgba(212, 0, 26, ${0.35 + 0.25 * Math.sin(now * 4 + i)})`; ctx.lineWidth = 2; ctx.stroke(); }
+    drawSymbol(s.id, t.x + t.w / 2, t.y + t.h * 0.4, Math.min(t.w, t.h) / 70);
+    ctx.font = '22px "Yatra One", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#4e1a1a";
+    ctx.fillText(s.np, t.x + t.w / 2, t.y + t.h * 0.78);
+    if (!g) return;
+    g.bets.filter(b => b.sym === i).forEach((b, k) => {
+      const col = b.who === "you" ? YOU_COLOR : NEIGHBORS[b.who].color;
+      drawSelRoti(t.x + 18 + (k % 3) * 44, t.y + 18 + Math.floor(k / 3) * 26, b.amt, col);
+    });
+  });
+  // the dice on the plate, then the tumbler over them
+  if (g) {
+    const showDice = g.phase === "lifting" || g.phase === "done";
+    if (showDice) for (const d of g.dice) drawDie(d, g.phase === "done" && g.counts[d.sym] >= MIN_MATCH);
+    let tx = PLATE.x, ty = PLATE.y + 10, ta = 1;
+    if (g.phase === "bet") { ty = PLATE.y - 20; }
+    else if (g.phase === "shake") { tx += Math.sin(now * 38) * 12; ty = PLATE.y - 40 + Math.sin(now * 29) * 10; }
+    else if (g.phase === "lifting") { const t = clamp((now - g.liftFrom) / 0.5, 0, 1); ty = PLATE.y + 10 - t * 120; ta = 1 - t; }
+    else if (g.phase === "done") ta = 0;
+    if (ta > 0) drawTumbler(tx, ty, ta);
+  } else drawTumbler(PLATE.x, PLATE.y - 20, 1);
+  // the host beside the plate
+  const hx = PLATE.x - PLATE.r - 46, hy = PLATE.y;
+  ctx.fillStyle = (g && g.mode === "house") ? YOU_COLOR : "#5d4037"; ctx.beginPath(); ctx.arc(hx, hy + 16, 28, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#b97a52"; ctx.beginPath(); ctx.arc(hx, hy - 6, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#141414"; ctx.beginPath(); ctx.arc(hx, hy - 12, 18, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx - 6, hy - 6, 2, 0, Math.PI * 2); ctx.arc(hx + 6, hy - 6, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.font = '800 15px "Baloo 2", sans-serif'; ctx.textAlign = "center"; ctx.lineWidth = 4; ctx.strokeStyle = "#141414"; ctx.fillStyle = "#ffd21a";
+  const hostName = g && g.mode === "house" ? "तिमी · साहु" : "दाइ · साहु";
+  ctx.strokeText(hostName, hx, hy + 56); ctx.fillText(hostName, hx, hy + 56);
+  const b = bubbles[0];
+  if (b && !(g && g.mode === "house")) {
+    ctx.globalAlpha = clamp(2.2 - b.t, 0, 1);
+    ctx.font = '700 16px "Mukta", sans-serif';
+    const w = ctx.measureText(b.text).width + 20, bx = clamp(hx + 20, w / 2 + 6, W - w / 2 - 6), by = hy - 50;
+    ctx.fillStyle = "#fffdf6"; ctx.strokeStyle = "#141414"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx - w / 2, by - 15, w, 30, 10) : ctx.rect(bx - w / 2, by - 15, w, 30); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#141414"; ctx.textBaseline = "middle"; ctx.fillText(b.text, bx, by + 1);
+    ctx.globalAlpha = 1;
+  }
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const f of floaters) {
+    ctx.globalAlpha = clamp(1 - f.t / (f.big ? 1.8 : 1.4), 0, 1);
+    ctx.font = `${f.big ? 48 : 32}px "Yatra One", sans-serif`;
+    ctx.lineWidth = f.big ? 8 : 6; ctx.strokeStyle = "#141414";
+    const x = clamp(f.x, 80, W - 80);
+    ctx.strokeText(f.text, x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+let lastT = performance.now();
+function frame(ts) {
+  const dt = Math.min((ts - lastT) / 1000, 1 / 30);
+  lastT = ts;
+  if (!paused) update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Input: tap a symbol to bet; Roll (player) or hold-to-shake (house)
+// ============================================================================
+const stage = $("stage");
+function toWorld(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+}
+stage.addEventListener("pointerdown", e => {
+  if (!game || game.over || paused || e.target.closest(".actions")) return;
+  Sound.init();
+  const p = toWorld(e);
+  const i = tiles.findIndex(t => p.x >= t.x && p.x <= t.x + t.w && p.y >= t.y && p.y <= t.y + t.h);
+  if (i >= 0) playerBet(i);
+});
+const goBtn = $("goBtn");
+goBtn.addEventListener("pointerdown", e => {
+  e.preventDefault(); Sound.init();
+  if (!game || paused) return;
+  startShake();
+});
+goBtn.addEventListener("pointerup", () => { if (game && game.mode === "house") slam(); });
+goBtn.addEventListener("pointercancel", () => { if (game && game.mode === "house") slam(); });
+goBtn.addEventListener("pointerleave", () => { if (game && game.mode === "house" && game.phase === "shake") slam(); });
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat || !game || paused) return;
+  if (!$("startScreen").hidden || !$("resultScreen").hidden || !$("howScreen").hidden) return;
+  e.preventDefault(); Sound.init(); startShake();
+});
+window.addEventListener("keyup", e => {
+  if (e.code !== "Space" || !game) return;
+  e.preventDefault(); if (game.mode === "house") slam();
+});
+
+// ============================================================================
+// Flow
+// ============================================================================
+function setMsg(text) { $("msg").textContent = text; }
+
+function updateHud() {
+  const g = game;
+  $("round").textContent = `पालो ${toNep(g ? Math.min(g.round, ROUNDS) : 0)}/${toNep(ROUNDS)}`;
+  $("bank").textContent = `सेल ${toNep(g ? g.bank : PLAYER_BANK)}`;
+  $("role").textContent = g ? (g.mode === "house" ? "तिमी साहु · You're the house" : "तिमी खेलाडी · You bet") : "";
+}
+
+function updateActions() {
+  const g = game;
+  const betting = g && g.phase === "bet";
+  $("actions").hidden = !(betting || (g && g.phase === "shake" && g.mode === "house"));
+  if (!g) return;
+  $("undoBtn").hidden = g.mode !== "player" || !g.bets.some(b => b.who === "you");
+  goBtn.textContent = g.mode === "house" ? (g.phase === "shake" ? "छोड · Let go to slam" : "हल्लाउ · Hold to shake") : "हान · Roll";
+}
+
+function start(mode) {
+  Sound.init();
+  $("startScreen").hidden = true;
+  $("resultScreen").hidden = true;
+  floaters = []; bubbles = [];
+  newEvening(mode);
+}
+
+function endEvening(reason) {
+  const g = game;
+  g.over = true;
+  $("actions").hidden = true;
+  setMsg("");
+  const startBank = g.mode === "house" ? HOUSE_BANK : PLAYER_BANK;
+  const net = g.bank - startBank;
+  const key = g.mode;
+  const newRecord = best[key] === null || net > best[key];
+  if (newRecord) { best[key] = net; store.set("jhanda.best", best); }
+  let title;
+  if (g.mode === "house") title = reason === "broke" ? "टाट पल्टियो!" : net > 0 ? "साहुको जित!" : net === 0 ? "बराबर" : "साहु हार्‍यो";
+  else title = reason === "broke" ? "सेल सकियो!" : net > 0 ? "जितियो!" : net === 0 ? "बराबर" : "साहुले खायो";
+  $("resultTitle").textContent = title;
+  $("resultScore").textContent = `${net > 0 ? "+" : ""}${toNep(net)} सेल`;
+  $("resultNote").textContent = g.mode === "house"
+    ? `${reason === "broke" ? "The house ran out of sel roti." : `After ${ROUNDS} rolls as the house,`} you finished with ${g.bank} (started with ${startBank}).`
+    : `${reason === "broke" ? "You ran out of sel roti." : `After ${ROUNDS} rolls,`} you finished with ${g.bank} (started with ${startBank}). You bet ${g.totalBet} in all and got ${g.totalBack} back.`;
+  $("resultFact").innerHTML = `<b>Who wins in the long run?</b> With these rules the house keeps about <b>${Math.round(HOUSE_EDGE * 100)} of every 100</b> sel roti bet, over time. ${g.mode === "house" ? "Lucky or not tonight, that's why the host is always smiling." : "Try being the house next time and see."}`;
+  $("newRecord").hidden = !newRecord || net <= 0;
+  $("resultScreen").hidden = false;
+}
+
+function shareText() {
+  const g = game, net = g.bank - (g.mode === "house" ? HOUSE_BANK : PLAYER_BANK);
+  return `🎲 झन्डा बुर्जा: ${g.mode === "house" ? "as the house" : "betting"} I finished ${net >= 0 ? "+" : ""}${toNep(net)} sel roti (${net >= 0 ? "+" : ""}${net}). Play money only! शुभ दीपावली`;
+}
+
+let howFromStart = false;
+function openHow(fromStart) {
+  howFromStart = fromStart;
+  if (!fromStart && game && !game.over) paused = true;
+  $("startScreen").hidden = true;
+  $("howScreen").hidden = false;
+}
+function closeHow() {
+  $("howScreen").hidden = true;
+  if (howFromStart) { $("startScreen").hidden = false; return; }
+  if (paused) { paused = false; lastT = performance.now(); }
+}
+
+$("playerBtn").addEventListener("click", () => start("player"));
+$("houseBtn").addEventListener("click", () => start("house"));
+$("againBtn").addEventListener("click", () => { $("resultScreen").hidden = true; $("startScreen").hidden = false; });
+$("undoBtn").addEventListener("click", undoBets);
+$("howBtn").addEventListener("click", () => openHow(true));
+$("helpBtn").addEventListener("click", () => {
+  if (!$("resultScreen").hidden || !$("howScreen").hidden) return;
+  openHow(!$("startScreen").hidden || !game || game.over);
+});
+$("howClose").addEventListener("click", closeHow);
+$("shareBtn").addEventListener("click", async () => {
+  const text = shareText();
+  const url = location.href.split("#")[0];
+  try {
+    if (navigator.share) await navigator.share({ title: "Jhanda Burja", text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      $("shareBtn").textContent = "Copied!";
+      setTimeout(() => ($("shareBtn").textContent = "Share"), 1500);
+    }
+  } catch (_) { /* share cancelled */ }
+});
+$("mute").addEventListener("click", () => {
+  Sound.muted = !Sound.muted;
+  $("mute").textContent = Sound.muted ? "🔇" : "🔊";
+});
+
+resize();
+document.fonts.ready.then(resize);
+updateHud();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

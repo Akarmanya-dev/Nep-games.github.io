@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Nep Games</title>
-  <meta name="description" content="Small browser games about the moments every Nepali remembers.">
+  <meta name="description" content="Nepal's own games on your phone: Changa Chait, Chungi, Tuin, Dandi Biyo, Kauda, Jhanda Burja and more.">
   <meta name="theme-color" content="#ffd21a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -75,42 +75,47 @@
     .game .icon { font-size: 2.2rem; width: 52px; text-align: center; flex-shrink: 0; }
     .game .name { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.15rem; line-height: 1.2; }
     .game .desc { color: var(--muted); font-size: .95rem; }
-    .empty {
-      padding: 28px 20px; border-radius: 12px;
-      border: 3px dashed var(--muted); color: var(--muted); text-align: center;
-    }
-    .empty strong { display: block; color: var(--ink); font-size: 1.15rem; }
     footer { color: var(--muted); font-size: .9rem; margin-top: 40px; text-align: center; }
+    .more-title {
+      font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.15rem;
+      text-align: center; margin: 40px 0 14px; color: var(--ink);
+    }
+    .games.more .game a { padding: 12px 16px; box-shadow: 4px 4px 0 var(--sign-black); }
+    .games.more .icon { font-size: 1.8rem; }
   </style>
 </head>
 <body>
   <header class="sign">
     <h1>नेपाली खेल</h1>
-    <p>Games about the moments every Nepali remembers</p>
+    <p>Nepal's own games, on your phone</p>
   </header>
 
   <main>
     <ul class="games" id="games"></ul>
+    <h2 class="more-title">थप खेल · More games</h2>
+    <ul class="games more" id="more"></ul>
     <footer>More games coming · अरू खेल छिट्टै</footer>
   </main>
 
   <script>
     // Add each finished game here; its folder lives at games/<slug>/index.html.
-    const GAMES = [
-      { slug: "recharge-card", icon: "📱", name: "रिचार्ज कार्ड · Recharge Card", desc: "Scratch it, dial it. Don't scratch off the numbers." },
-      { slug: "chungi", icon: "🦶", name: "चुङ्गी · Chungi", desc: "Keep the rubber-band ball in the air. Solo or pass the phone." },
-      { slug: "morning-assembly", icon: "🧍", name: "प्रार्थना · Morning Assembly", desc: "सावधान! विश्राम! Don't let PT sir catch you swaying." },
-      { slug: "dandi-biyo", icon: "🏏", name: "डन्डी बियो · Dandi Biyo", desc: "Flick it, guard the hole, whack it. Measured in dandi lengths." },
+    // Featured games show first, in this order; the rest go under "More games".
+    const FEATURED = [
       { slug: "changa-chait", icon: "🪁", name: "चङ्गा चैट · Changa Chait", desc: "Dashain kite fight over Kathmandu. Pull from above, let go from below." },
+      { slug: "chungi", icon: "🦶", name: "चुङ्गी · Chungi", desc: "Keep the rubber-band ball in the air. Solo or pass the phone." },
       { slug: "tuin", icon: "🚡", name: "तुइन · Tuin", desc: "Cross the river on a cable. Brake down, pull up, keep the seat steady." },
+      { slug: "dandi-biyo", icon: "🏏", name: "डन्डी बियो · Dandi Biyo", desc: "Flick it, guard the hole, whack it. Measured in dandi lengths." },
       { slug: "kauda", icon: "🐚", name: "कौडा · Kauda", desc: "Laxmi Puja night with the family: sixteen cowries, मार-ताल. Play money only." },
+      { slug: "jhanda-burja", icon: "🎲", name: "झन्डा बुर्जा · Jhanda Burja", desc: "Tihar street dice: bet on the symbols, or be the house. Play money only." },
+    ];
+    const MORE = [
+      { slug: "recharge-card", icon: "📱", name: "रिचार्ज कार्ड · Recharge Card", desc: "Scratch it, dial it. Don't scratch off the numbers." },
+      { slug: "morning-assembly", icon: "🧍", name: "प्रार्थना · Morning Assembly", desc: "सावधान! विश्राम! Don't let PT sir catch you swaying." },
     ];
 
-    const list = document.getElementById("games");
-    if (GAMES.length === 0) {
-      list.outerHTML = '<div class="empty"><strong>पहिलो खेल छिट्टै आउँदैछ</strong>The first game is coming soon.</div>';
-    } else {
-      for (const g of GAMES) {
+    function fill(listId, games) {
+      const list = document.getElementById(listId);
+      for (const g of games) {
         const li = document.createElement("li");
         li.className = "game";
         // Link to index.html explicitly so it also works when opened as a local file.
@@ -121,6 +126,8 @@
         list.appendChild(li);
       }
     }
+    fill("games", FEATURED);
+    fill("more", MORE);
   </script>
 </body>
 </html>
