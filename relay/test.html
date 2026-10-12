@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Relay Test</title>
+  <meta name="theme-color" content="#ffd21a">
+  <style>
+    /* Same signboard palette as the games. */
+    :root {
+      --wall: #d5ead8; --ink: #10212b; --muted: #3f5a67;
+      --sign: #ffd21a; --sign-red: #d4001a; --sign-black: #141414; --paper: #fffdf6;
+      --good: #1b7a3a; --ok: #a86b00; --bad: #d4001a;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { min-height: 100dvh; background: var(--wall); color: var(--ink);
+      font: 17px/1.5 system-ui, sans-serif; }
+    .sign { background: var(--sign); border-bottom: 8px solid var(--sign-red); text-align: center; padding: 22px 16px 16px; }
+    .sign h1 { color: var(--sign-red); font-size: 2.2rem; line-height: 1.1; }
+    .sign p { font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: .8rem; margin-top: 4px; }
+    main { max-width: 520px; margin: 0 auto; padding: 24px 16px 48px; }
+    .card { background: var(--paper); border: 3px solid var(--sign-black); border-radius: 12px;
+      box-shadow: 5px 5px 0 var(--sign-black); padding: 16px; margin-top: 18px; }
+    button { font: inherit; font-weight: 800; padding: 12px 22px; border-radius: 10px; cursor: pointer;
+      background: var(--sign-red); color: #fff; border: 3px solid var(--sign-black); box-shadow: 3px 3px 0 var(--sign-black); }
+    button:disabled { opacity: .5; cursor: default; }
+    button.plain { background: var(--paper); color: var(--ink); }
+    .big { font-size: 2.4rem; font-weight: 800; line-height: 1.1; }
+    .muted { color: var(--muted); font-size: .92rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    td { padding: 4px 0; border-bottom: 1px solid #e6e2d3; }
+    td:last-child { text-align: right; font-weight: 700; }
+    .good { color: var(--good); } .ok { color: var(--ok); } .bad { color: var(--bad); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="sign">
+    <h1>नेट जाँच</h1>
+    <p>Changa Chait multiplayer test</p>
+  </header>
+  <main>
+    <p>This test checks how fast your phone can send kite moves to other players through the game server.
+      It takes 20 seconds. Keep this page open until it finishes.</p>
+    <p style="margin-top: 16px"><button id="go">Start test</button></p>
+
+    <div class="card" id="progress" hidden>
+      <div class="big" id="left">20 s</div>
+      <div class="muted" id="live">Connecting…</div>
+    </div>
+
+    <div class="card" id="result" hidden>
+      <div class="big" id="verdict"></div>
+      <div id="verdictText" style="margin-top: 6px"></div>
+      <table id="table"></table>
+      <p class="muted" style="margin-top: 10px">Delay: the time a kite move takes to reach another phone.
+        "Most moves" means 95 of every 100 moves arrived faster than this.</p>
+      <p style="margin-top: 14px"><button class="plain" id="copy">Copy result</button> <span class="muted" id="copied"></span></p>
+    </div>
+
+    <div class="card" id="error" hidden></div>
+  </main>
+
+  <script>
+    const RELAY = "wss://nep-games-relay.akarmanya.workers.dev";
+    const SECONDS = 20, RATE = 10;
+    // Cloudflare data center codes that players are likely to see.
+    const PLACES = {
+      KTM: "Kathmandu", BOM: "Mumbai", DEL: "New Delhi", CCU: "Kolkata", MAA: "Chennai", BLR: "Bengaluru",
+      HYD: "Hyderabad", DAC: "Dhaka", SIN: "Singapore", HKG: "Hong Kong", NRT: "Tokyo", KUL: "Kuala Lumpur",
+      BKK: "Bangkok", SYD: "Sydney", DXB: "Dubai", DOH: "Doha", FRA: "Frankfurt", LHR: "London",
+      AMS: "Amsterdam", SLC: "Salt Lake City", DEN: "Denver", LAX: "Los Angeles", SJC: "San Jose",
+      SEA: "Seattle", ORD: "Chicago", IAD: "Washington DC", EWR: "New York", DFW: "Dallas",
+    };
+    const place = code => PLACES[code] ? `${PLACES[code]} (${code})` : code;
+    const $ = id => document.getElementById(id);
+    let lastResult = "";
+
+    function join(room) {
+      return new Promise((resolve, reject) => {
+        const ws = new WebSocket(`${RELAY}/room/${room}`);
+        const timer = setTimeout(() => { ws.close(); reject(new Error("timeout")); }, 10000);
+        ws.onerror = () => { clearTimeout(timer); reject(new Error("could not connect")); };
+        ws.onmessage = e => {
+          clearTimeout(timer);
+          ws.onerror = null;
+          resolve({ ws, welcome: JSON.parse(e.data) });
+        };
+      });
+    }
+
+    async function run() {
+      $("go").disabled = true;
+      $("result").hidden = $("error").hidden = true;
+      $("progress").hidden = false;
+      $("left").textContent = `${SECONDS} s`;
+      $("live").textContent = "Connecting…";
+
+      // Two players on this phone, in a room of their own.
+      const room = "T" + Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, "0");
+      let a, b;
+      try {
+        a = await join(room);
+        b = await join(room);
+      } catch (e) {
+        $("progress").hidden = true;
+        $("error").hidden = false;
+        $("error").innerHTML = `<b class="bad">Could not reach the game server.</b><br>
+          <span class="muted">Check your internet and try again. The free server also stops for the day after
+          heavy use. It restarts at 5:45 AM Nepal time.</span>`;
+        $("go").disabled = false;
+        return;
+      }
+
+      const delays = [];
+      let sent = 0;
+      for (const p of [a, b]) {
+        p.ws.onmessage = e => {
+          const m = JSON.parse(e.data);
+          if (m.type === "kite") delays.push(performance.now() - m.t);
+        };
+      }
+      const started = performance.now();
+      const timer = setInterval(() => {
+        for (const p of [a, b]) {
+          if (p.ws.readyState === WebSocket.OPEN) {
+            p.ws.send(JSON.stringify({ type: "kite", t: performance.now(), n: sent }));
+            sent++;
+          }
+        }
+        const left = Math.max(0, SECONDS - (performance.now() - started) / 1000);
+        $("left").textContent = `${Math.ceil(left)} s`;
+        if (delays.length) $("live").textContent = `Delay so far: ${Math.round(median(delays))} ms`;
+      }, 1000 / RATE);
+
+      await new Promise(r => setTimeout(r, SECONDS * 1000));
+      clearInterval(timer);
+      await new Promise(r => setTimeout(r, 1500)); // let the last moves arrive
+      a.ws.close(); b.ws.close();
+      show(a.welcome, sent, delays);
+      $("go").disabled = false;
+      $("go").textContent = "Test again";
+    }
+
+    function median(xs) {
+      const s = [...xs].sort((x, y) => x - y);
+      return s[Math.floor(s.length / 2)];
+    }
+
+    function show(welcome, sent, delays) {
+      const s = [...delays].sort((x, y) => x - y);
+      const med = s.length ? s[Math.floor(s.length / 2)] : NaN;
+      const p95 = s.length ? s[Math.floor(s.length * 0.95)] : NaN;
+      const lost = sent - s.length;
+      let level, title, text;
+      if (med <= 150 && p95 <= 300 && lost <= sent * 0.02) {
+        level = "good"; title = "Good"; text = "Kite fights will feel smooth on this connection.";
+      } else if (med <= 300 && p95 <= 600 && lost <= sent * 0.05) {
+        level = "ok"; title = "OK"; text = "Playable. Other kites may lag a little.";
+      } else {
+        level = "bad"; title = "Slow"; text = "Other kites would jump around on this connection.";
+      }
+      const rows = [
+        ["Delay (typical)", `${Math.round(med)} ms`],
+        ["Delay (most moves)", `${Math.round(p95)} ms`],
+        ["Slowest move", `${Math.round(s[s.length - 1])} ms`],
+        ["Moves lost", `${lost} of ${sent}`],
+        ["Your phone connects through", place(welcome.edge)],
+        ["Game server runs in", place(welcome.room)],
+      ];
+      $("progress").hidden = true;
+      $("result").hidden = false;
+      $("verdict").textContent = title;
+      $("verdict").className = `big ${level}`;
+      $("verdictText").textContent = text;
+      $("table").innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+      lastResult = `Changa Chait net test: ${title}\n` + rows.map(([k, v]) => `${k}: ${v}`).join("\n")
+        + `\n${navigator.userAgent}`;
+    }
+
+    $("go").onclick = run;
+    $("copy").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(lastResult);
+        $("copied").textContent = "Copied. Paste it in a message.";
+      } catch {
+        $("copied").textContent = "Could not copy. Take a screenshot instead.";
+      }
+    };
+  </script>
+</body>
+</html>
