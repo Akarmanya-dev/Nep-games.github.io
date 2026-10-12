@@ -76,6 +76,13 @@
     .game .name { font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.15rem; line-height: 1.2; }
     .game .desc { color: var(--muted); font-size: .95rem; }
     footer { color: var(--muted); font-size: .9rem; margin-top: 40px; text-align: center; }
+    .visits {
+      display: inline-block; margin-bottom: 10px; padding: 2px 14px;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 999px;
+      color: var(--ink);
+    }
+    .visits[hidden] { display: none; }
+    .visits b { font-family: "Baloo 2", sans-serif; font-weight: 800; }
     .more-title {
       font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 1.15rem;
       text-align: center; margin: 40px 0 14px; color: var(--ink);
@@ -94,7 +101,10 @@
     <ul class="games" id="games"></ul>
     <h2 class="more-title">थप खेल · More games</h2>
     <ul class="games more" id="more"></ul>
-    <footer>More games coming · अरू खेल छिट्टै</footer>
+    <footer>
+      <p class="visits" id="visits" hidden>👣 <b></b> <span>visits</span> so far</p>
+      <p>More games coming · अरू खेल छिट्टै</p>
+    </footer>
   </main>
 
   <script>
@@ -129,5 +139,6 @@
     fill("games", FEATURED);
     fill("more", MORE);
   </script>
+  <script src="visit-counter.js" defer></script>
 </body>
 </html>
