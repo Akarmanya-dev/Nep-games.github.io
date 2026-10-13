@@ -1,8 +1,9 @@
 # Changa Chait room server
 
-A Cloudflare Worker for Changa Chait multiplayer (version 2.0). It runs on the
-Cloudflare free plan. This is the feasibility prototype: it only passes
-messages between the phones in a room. The game does not use it yet.
+A Cloudflare Worker for Changa Chait multiplayer (version 2.0), the game's
+**Play with friends** option. It runs on the Cloudflare free plan. It only
+passes messages between the phones in a room: the game itself (on the room
+creator's phone, the host) decides the wind, the computer kites and every cut.
 
 - `src/index.js`: the Worker. Each room code is one Durable Object (a small
   server that Cloudflare keeps running). A room holds up to 5 phones.

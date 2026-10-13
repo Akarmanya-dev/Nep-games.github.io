@@ -72,7 +72,12 @@ export class Room extends DurableObject {
     this.broadcast(ws, data);
   }
 
-  webSocketClose(ws) { this.leave(ws); }
+  webSocketClose(ws) {
+    // Answer the phone's close, so its connection finishes closing right away
+    // (the runtime does not always answer by itself).
+    try { ws.close(1000, "bye"); } catch {}
+    this.leave(ws);
+  }
   webSocketError(ws) { this.leave(ws); }
 
   leave(ws) {

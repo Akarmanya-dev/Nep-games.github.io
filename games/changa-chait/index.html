@@ -169,6 +169,42 @@
     .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
     .keys div { background: var(--sign-black); color: var(--sign); border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
     .keys b { display: block; font-family: "Baloo 2", sans-serif; }
+    [hidden] { display: none !important; }
+
+    /* --- playing with friends ------------------------------------------- */
+    .scoreboard { position: absolute; left: 16px; top: 46px; display: grid; gap: 3px; justify-items: start; pointer-events: none; }
+    .scoreboard span {
+      display: flex; align-items: center; gap: 6px;
+      font: 800 .85rem "Baloo 2", sans-serif; color: #fff;
+      background: rgba(20, 20, 20, .72); padding: 0 8px; border-radius: 6px; white-space: nowrap;
+    }
+    .scoreboard span.me { color: var(--sign); }
+    .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--sign-black); flex-shrink: 0; }
+    input { user-select: text; -webkit-user-select: text; }
+    .field { display: block; text-align: left; font-weight: 800; margin-top: 12px; }
+    .field input {
+      display: block; width: 100%; margin-top: 4px;
+      font: 800 1.2rem "Baloo 2", sans-serif; color: var(--ink);
+      padding: 8px 12px; border: 3px solid var(--sign-black); border-radius: 10px; background: var(--paper);
+    }
+    .join-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+    .join-row input { text-transform: uppercase; letter-spacing: .25em; text-align: center; }
+    .join-row .btn { width: auto; padding: 10px 18px; }
+    .or { margin-top: 16px; font-weight: 800; }
+    .room-code {
+      font: 800 3rem "Baloo 2", sans-serif; letter-spacing: .25em; padding-left: .25em; line-height: 1.3;
+      background: var(--paper); border: 3px dashed var(--sign-black); border-radius: 10px; margin-top: 4px;
+    }
+    .players, .standings { list-style: none; padding: 0; margin: 10px 0 0; text-align: left; }
+    .players li, .standings li {
+      display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 4px 10px;
+      background: var(--paper); border: 2px solid var(--sign-black); border-radius: 8px; font-weight: 800;
+    }
+    .players li small, .standings li b { margin-left: auto; }
+    .players li small { color: var(--muted); }
+    .btn:disabled { opacity: .55; cursor: default; box-shadow: none; transform: none; }
+    .error { color: var(--sign-red); font-weight: 800; margin-top: 10px; }
+    .error:empty { display: none; }
   </style>
 </head>
 <body>
@@ -193,6 +229,7 @@
       <span class="chip" id="bestChip">रेकर्ड: ०</span>
     </div>
     <div class="score"><div class="n" id="score">०</div><span class="u">चैट · kites cut</span></div>
+    <div class="scoreboard" id="scoreboard" hidden></div>
     <div class="hint" id="hint"></div>
   </div>
 </div>
@@ -209,7 +246,36 @@
     </ol>
     <p class="note">Laptop: hold Space or the mouse button</p>
     <button class="btn" id="startBtn">उडाऔं · Fly</button>
+    <button class="btn secondary" id="friendsBtn">साथीसँग खेल्नुस् · Play with friends</button>
     <button class="text-link" id="howBtn">कसरी खेल्ने? · How to play</button>
+  </div>
+</div>
+
+<div class="overlay" id="roomScreen" hidden>
+  <div class="signpanel">
+    <h2>साथीसँग खेल्नुस्</h2>
+    <div class="sub">Play with friends · up to 5</div>
+    <div id="roomChoose">
+      <label class="field">तपाईंको नाम · Your name
+        <input id="nameInput" maxlength="12" autocomplete="nickname" enterkeyhint="done" placeholder="Name"></label>
+      <button class="btn" id="createBtn">कोठा बनाउनुस् · Create a room</button>
+      <p class="or">or join a friend's room</p>
+      <div class="join-row">
+        <label class="field">कोड · Room code
+          <input id="codeInput" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" placeholder="ABCD"></label>
+        <button class="btn secondary" id="joinBtn">Join</button>
+      </div>
+    </div>
+    <div id="roomWait" hidden>
+      <p class="note">कोठाको कोड · Room code</p>
+      <div class="room-code" id="roomCode"></div>
+      <button class="btn secondary" id="inviteBtn">Share invite link</button>
+      <ul class="players" id="playerList"></ul>
+      <p class="note" id="roomNote"></p>
+      <button class="btn" id="roundBtn">सुरु गरौं · Start</button>
+    </div>
+    <p class="error" id="roomError"></p>
+    <button class="text-link" id="roomBack">← Back</button>
   </div>
 </div>
 
@@ -248,6 +314,11 @@
       <div><h3>Stay up</h3><p>Don't let your kite sink onto the <b>rooftops and electric wires</b>: तारमा अड्कियो! When your spool runs out, the kite can't go farther and letting go stops cutting. You have <b>3 kites</b>.</p></div>
     </div>
 
+    <div class="step">
+      <div class="pic"><svg width="64" height="56" viewBox="0 0 64 56"><path d="M14 6 L22 15 L14 24 L6 15 Z" fill="#ffd21a" stroke="#141414" stroke-width="2"/><path d="M48 4 L56 13 L48 22 L40 13 Z" fill="#1e63c7" stroke="#141414" stroke-width="2"/><path d="M32 22 L40 31 L32 40 L24 31 Z" fill="#d81b3c" stroke="#141414" stroke-width="2"/><path d="M14 24 L20 54 M48 22 L44 54 M32 40 L32 54" stroke="#141414" stroke-width="1.5"/></svg></div>
+      <div><h3>साथीसँग · With friends</h3><p>Tap <b>Play with friends</b>, create a room and share the code. Up to 5 people fly in one sky for 3 minutes, and the most चैट wins. <b>White kites</b> are the computer.</p></div>
+    </div>
+
     <div class="keys">
       <div><b>📱 Phone</b>Hold a finger anywhere to pull, lift it to let go</div>
       <div><b>💻 Laptop</b>Hold Space or the mouse button to pull</div>
@@ -263,8 +334,10 @@
     <div class="big" id="resultScore"></div>
     <p class="note" id="resultNote"></p>
     <span class="record" id="newRecord" hidden>नयाँ रेकर्ड! New record!</span>
+    <ol class="standings" id="standings" hidden></ol>
     <button class="btn" id="shareBtn">Share</button>
     <button class="btn secondary" id="againBtn">फेरि उडाऔं · Fly again</button>
+    <button class="text-link" id="leaveBtn" hidden>कोठा छोड्नुस् · Leave room</button>
   </div>
 </div>
 
@@ -314,6 +387,22 @@ const STYLES = {
 };
 const RIVAL_STYLES = ["dibdibe", "pakhete", "sete", "nilchi", "rate"];
 
+// Playing with friends (version 2.0). Set the NET_ numbers from the net test
+// (relay/test.html), run on phones in Nepal.
+const RELAY_URL = "wss://nep-games-relay.akarmanya.workers.dev";
+const ROUND_SECONDS = 180;
+const SKY_W = 500;                 // in a room every phone shows the same sky, this wide (a phone held upright)
+const SEAT_X = [0.5, 0.15, 0.85, 0.32, 0.68];               // where each player stands on the rooftop (share of the width)
+const SEAT_STYLES = ["ambe", "nilchi", "rate", "dibdibe", "pakhete"];  // one kite design per seat; computer kites are white
+const RIVAL_SPOTS = [[40, 700], [460, 700], [130, 770], [370, 770]];  // rooftops the computer kites fly from (x, roof top)
+const NET_RATE = 10;               // kite updates each phone sends per second
+const NET_DELAY = [80, 450];       // other kites are drawn this many ms behind (least, most): one update gap,
+const NET_MARGIN = 20;             // plus the jitter measured for that player, plus this margin
+const JITTER_SHARE = 0.9;          // the jitter covers 9 of 10 recent updates; for a rarer slow one the kite coasts, then pauses
+const JITTER_WINDOW = 40;          // ...out of the last this many updates (4 seconds)
+const COAST_MS = 100;              // when an update is late, keep a kite moving on its last heading this long
+const AWAY_AFTER = 3;              // seconds without updates before a player counts as away
+
 const $ = id => document.getElementById(id);
 const toNep = n => String(n).replace(/\d/g, d => "०१२३४५६७८९"[d]);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -331,7 +420,7 @@ const store = {
 const Sound = {
   ctx: null, muted: false, noise: null, wind: null, saw: null, lastClick: 0,
   init() {
-    if (this.ctx) return;
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
@@ -390,6 +479,10 @@ const Sound = {
 const canvas = $("canvas"), ctx = canvas.getContext("2d");
 const bg = document.createElement("canvas"), bgc = bg.getContext("2d");
 let scale = 1, dpr = 1, W = 600;
+// W is the width of the sky the kites fly in. Alone, it is the whole screen. In a room it is
+// SKY_W on every phone, centered on screen: VW is the visible width, ox the margin on each
+// side, and oy the extra sky above when the screen is too narrow for SKY_W.
+let VW = 600, ox = 0, oy = 0;
 let roofs = [];          // rooftops rivals can stand on: { x, y }
 let clouds = [];
 
@@ -397,19 +490,19 @@ function resize() {
   const r = canvas.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return;
   dpr = Math.min(window.devicePixelRatio || 1, 2);
-  scale = r.height / 1000;
   const oldW = W;
-  W = r.width / scale;
+  if (MP.inRoom) { scale = Math.min(r.height / 1000, r.width / SKY_W); W = SKY_W; }
+  else { scale = r.height / 1000; W = r.width / scale; }
+  VW = r.width / scale; ox = (VW - W) / 2; oy = r.height / scale - 1000;
   for (const c of [canvas, bg]) { c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); }
-  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
-  bgc.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  bgc.setTransform(dpr * scale, 0, 0, dpr * scale, 0, dpr * scale * oy);
   drawBackground();
-  if (game && oldW !== W) {
+  if (game && !game.mp && oldW !== W) {
     // keep everything on screen after a rotation / window resize
     for (const k of allKites()) { k.x = clamp(k.x * W / oldW, 20, W - 20); }
     if (game.player) game.player.anchor.x = W / 2;
   }
-  if (!clouds.length) for (let i = 0; i < 5; i++) clouds.push({ x: rand(0, W), y: rand(80, 330), s: rand(0.6, 1.3) });
+  if (!clouds.length) for (let i = 0; i < 5; i++) clouds.push({ x: rand(0, VW), y: rand(80, 330), s: rand(0.6, 1.3) });
 }
 window.addEventListener("resize", resize);
 
@@ -420,20 +513,20 @@ function drawBackground() {
   const c = bgc;
   const sky = c.createLinearGradient(0, 0, 0, 700);
   sky.addColorStop(0, "#3f97d6"); sky.addColorStop(1, "#bfe3f2");
-  c.fillStyle = sky; c.fillRect(0, 0, W, 1000);
+  c.fillStyle = sky; c.fillRect(0, -oy, VW, 1000 + oy);          // oy: extra sky above on narrow screens
 
   // Himalaya far away, then the green valley rim
   c.fillStyle = "#dfeef5";
   c.beginPath(); c.moveTo(0, 600);
-  for (let x = -60, k = 0; x < W + 200; x += 170, k++) { c.lineTo(x + 85, 470 - hash(k) * 60); c.lineTo(x + 170, 560); }
-  c.lineTo(W, 600); c.fill();
+  for (let x = -60, k = 0; x < VW + 200; x += 170, k++) { c.lineTo(x + 85, 470 - hash(k) * 60); c.lineTo(x + 170, 560); }
+  c.lineTo(VW, 600); c.fill();
   c.fillStyle = "#7da77a";
   c.beginPath(); c.moveTo(0, 700);
-  for (let x = -40, k = 0; x < W + 200; x += 140, k++) c.quadraticCurveTo(x + 70, 560 - hash(k + 9) * 40, x + 140, 600);
-  c.lineTo(W, 700); c.fill();
+  for (let x = -40, k = 0; x < VW + 200; x += 140, k++) c.quadraticCurveTo(x + 70, 560 - hash(k + 9) * 40, x + 140, 600);
+  c.lineTo(VW, 700); c.fill();
 
   // Swayambhu on its hill: white dome, golden tower, prayer flags
-  const sx = W * 0.22, sy = 585;
+  const sx = VW * 0.22, sy = 585;
   c.fillStyle = "#5f8f5c"; c.beginPath(); c.ellipse(sx, sy + 30, 90, 45, 0, Math.PI, 0); c.fill();
   c.fillStyle = "#f6f3ea"; c.beginPath(); c.arc(sx, sy, 22, Math.PI, 0); c.fill();
   c.fillStyle = "#d4a017"; c.fillRect(sx - 7, sy - 32, 14, 12);
@@ -445,7 +538,7 @@ function drawBackground() {
   }
 
   // a bamboo linge ping (Dashain swing) in an open field
-  const px = W * (W > 1000 ? 0.79 : 0.9), py = 640;
+  const px = VW * (VW > 1000 ? 0.79 : 0.9), py = 640;
   c.strokeStyle = "#8d6e3f"; c.lineWidth = 4;
   c.beginPath(); c.moveTo(px - 30, py + 40); c.lineTo(px, py - 70); c.lineTo(px + 30, py + 40); c.stroke();
   c.lineWidth = 1.5; c.beginPath(); c.moveTo(px, py - 70); c.lineTo(px - 6, py + 15); c.moveTo(px, py - 70); c.lineTo(px + 6, py + 15); c.stroke();
@@ -455,7 +548,7 @@ function drawBackground() {
   const colors = ["#b5533c", "#a44a35", "#e8c9a4", "#f2b8c6", "#f7e08a", "#9fc7e0", "#e9e2d0"];
   for (const [row, base, hMin, hMax, wMin, wMax] of [[0, 700, 20, 60, 50, 90], [1, 760, 30, 90, 70, 120], [2, 840, 30, 110, 90, 150]]) {
     let x = -20, k = row * 100;
-    while (x < W + 20) {
+    while (x < VW + 20) {
       const w = wMin + hash(k) * (wMax - wMin), h = hMin + hash(k + 50) * (hMax - hMin);
       const top = base - h;
       const col = colors[Math.floor(hash(k + 7) * colors.length)];
@@ -480,18 +573,18 @@ function drawBackground() {
         c.strokeStyle = "#5d4037"; c.lineWidth = 2;
         for (let r = 0; r < 4; r++) { c.beginPath(); c.moveTo(x + 8 + r * 10, top); c.lineTo(x + 8 + r * 10, top - 14); c.stroke(); }
       }
-      if (row >= 1 && Math.abs(x + w / 2 - W / 2) > 90) roofs.push({ x: x + w * 0.35, y: top });
+      if (row >= 1 && Math.abs(x + w / 2 - VW / 2) > 90) roofs.push({ x: x + w * 0.35, y: top });
       x += w; k++;
     }
     // temples rise above the roofs behind the nearest row of houses
-    if (row === 0) for (const f of (W > 1000 ? [0.45, 0.9] : [0.47])) drawPagoda(c, W * f, 700, 0.7, 3);
-    if (row === 1) for (const f of (W > 1000 ? [0.33, 0.64] : [0.7])) drawPagoda(c, W * f, 768, 1.1, 4);
+    if (row === 0) for (const f of (VW > 1000 ? [0.45, 0.9] : [0.47])) drawPagoda(c, VW * f, 700, 0.7, 3);
+    if (row === 1) for (const f of (VW > 1000 ? [0.33, 0.64] : [0.7])) drawPagoda(c, VW * f, 768, 1.1, 4);
   }
 
   // electric poles and the tangle of wires (the real enemy of every kite)
   c.strokeStyle = "#2b2b2b"; c.lineWidth = 3;
   const poles = [];
-  for (let x = 40; x < W + 200; x += 260) poles.push(x);
+  for (let x = 40; x < VW + 200; x += 260) poles.push(x);
   for (const x of poles) { c.fillStyle = "#6d6d6d"; c.fillRect(x - 4, ROOF_Y - 10, 8, 1000); }
   c.lineWidth = 1.5;
   for (let i = 0; i < poles.length - 1; i++) for (let j = 0; j < 4; j++) {
@@ -500,8 +593,8 @@ function drawBackground() {
   }
 
   // your own rooftop parapet at the bottom
-  c.fillStyle = "#8a8a8a"; c.fillRect(0, 935, W, 65);
-  c.fillStyle = "#a3a3a3"; c.fillRect(0, 935, W, 8);
+  c.fillStyle = "#8a8a8a"; c.fillRect(0, 935, VW, 65);
+  c.fillStyle = "#a3a3a3"; c.fillRect(0, 935, VW, 8);
 }
 
 function drawPagoda(c, x, base, s, tiers) {
@@ -666,9 +759,9 @@ function makeKite(anchor, style, isPlayer) {
   };
 }
 
-function playerKite(anchor) {
+function playerKite(anchor, style = "ambe") {
   // a fresh kite starts well up in the sky with enough string out to hold it there
-  const k = makeKite(anchor, "ambe", true);
+  const k = makeKite(anchor, style, true);
   k.x = anchor.x + rand(-40, 40); k.y = 520; k.th = rand(-0.3, 0.3);
   k.L = Math.hypot(k.x - anchor.x, k.y - anchor.y) + 10;
   return k;
@@ -708,6 +801,18 @@ function stepKite(k, dt) {
 // Rivals: kids on the neighboring rooftops
 // ============================================================================
 function spawnRival() {
+  if (game.mp) {
+    // in a room: white computer kites on fixed rooftops, so every phone draws them in the same place
+    const free = RIVAL_SPOTS.map((_, i) => i).filter(i => !game.rivals.some(o => o.spot === i));
+    if (!free.length) return;
+    const spot = free[Math.floor(Math.random() * free.length)];
+    const r = makeKite({ x: RIVAL_SPOTS[spot][0], y: RIVAL_SPOTS[spot][1] - 22 }, "sete", false);
+    r.spot = spot; r.key = `r${MP.seat}_${++MP.rivalSeq}`;
+    r.sharp = rand(...RIVAL_SHARP); r.skill = 0.75;
+    r.mode = "patrol"; r.modeUntil = now + rand(2, 4);
+    game.rivals.push(r);
+    return;
+  }
   const spots = roofs.filter(r => !game.rivals.some(o => Math.abs(o.anchor.x - r.x) < 60));
   if (!spots.length) return;
   const spot = spots[Math.floor(Math.random() * spots.length)];
@@ -723,15 +828,22 @@ function spawnRival() {
 function maxRivals() { return Math.min(3, 1 + Math.floor(game.score / 3)); }
 
 function decideRival(r) {
-  const p = game.player;
-  const e = game.fights.get(r.id);
+  if (game.mp && !(r.target && stillFlying(r.target) && now < r.retarget)) {
+    // in a room: hunt one of the people, switching every few seconds
+    const people = [game.player, ...MP.remoteKites()].filter(stillFlying);
+    r.target = people.length ? people[Math.floor(Math.random() * people.length)] : null;
+    r.retarget = now + rand(4, 8);
+  }
+  const p = game.mp ? r.target : game.player;
+  const e = fightOf(r);
+  const foe = e ? (e.a === r ? e.b : e.a) : null;
   let tx, ty;
   if (r.y > ROOF_Y - 150) { tx = r.x; ty = r.y - 300; }                    // climb away from the wires
-  else if (e && now - e.last < TOUCH_GRACE && p && p.state === "fly") {
+  else if (foe && latest(foe).state === "fly") {
     // in a fight: pick a technique (the better one, most of the time)
     if (now > r.techUntil) {
       r.techUntil = now + rand(0.4, 0.8);
-      const higher = r.y < p.y - HEIGHT_EDGE;
+      const higher = r.y < latest(foe).y - HEIGHT_EDGE;
       const smart = Math.random() < r.skill;
       r.tech = higher === smart ? "pull" : "dheel";
     }
@@ -746,8 +858,9 @@ function decideRival(r) {
     if (r.mode === "hunt" && p && p.state === "fly" && now > p.safeUntil) {
       // aim for a point on the far side of your string, so the strings cross
       const f = rand(0.45, 0.75);
-      const qx = lerp(p.anchor.x, p.x, f), qy = lerp(p.anchor.y, p.y, f);
-      let nx = -(p.y - p.anchor.y), ny = p.x - p.anchor.x;
+      const lp = latest(p);
+      const qx = lerp(p.anchor.x, lp.x, f), qy = lerp(p.anchor.y, lp.y, f);
+      let nx = -(lp.y - p.anchor.y), ny = lp.x - p.anchor.x;
       const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
       const side = Math.sign((r.anchor.x - qx) * nx + (r.anchor.y - qy) * ny) || 1;
       tx = qx - side * nx * 140; ty = Math.min(qy - side * ny * 140, ROOF_Y - 220);
@@ -781,37 +894,71 @@ function sawPower(k, other) {
   return k.L < LINE_MAX - 1 ? DHEEL_SAW : DRY_SAW;
 }
 
+// A fight is any two kites whose strings cross, as long as a person flies at least one of
+// them (computer kites leave each other alone). Each fight is kept under its pair of kites:
+// { a, b, dmgA, dmgB, luckA, luckB, last, x, y }, where dmgA is how worn a's string is.
+const isPerson = k => k.isPlayer || k.remote;
+// Where a kite is for the fights: another player's kite as last received (the drawing
+// shows it a little later, smoothed), every other kite as it is.
+const latest = k => k.live || k;
+
+function fightOf(k) {
+  for (const e of game.fights.values()) if ((e.a === k || e.b === k) && now - e.last < TOUCH_GRACE) return e;
+  return null;
+}
+
+function forgetFights(k) {
+  if (!game) return;
+  for (const [key, e] of game.fights) if (e.a === k || e.b === k) game.fights.delete(key);
+}
+
 function updateFights(dt) {
-  const p = game.player;
+  const kites = [game.player, ...(game.mp ? MP.remoteKites() : []), ...game.rivals].filter(k => k && latest(k).state === "fly");
   let sawing = false;
-  for (const r of game.rivals) {
-    if (r.state !== "fly") continue;
-    let e = game.fights.get(r.id);
-    const canFight = p && p.state === "fly" && now > p.safeUntil;
-    const X = canFight ? segIntersect(p.anchor.x, p.anchor.y, p.x, p.y, r.anchor.x, r.anchor.y, r.x, r.y) : null;
+  for (let i = 0; i < kites.length; i++) for (let j = i + 1; j < kites.length; j++) {
+    const a = kites[i], b = kites[j], la = latest(a), lb = latest(b);
+    if (!isPerson(a) && !isPerson(b)) continue;
+    const key = `${a.id}|${b.id}`;
+    let e = game.fights.get(key);
+    const canFight = now > a.safeUntil && now > b.safeUntil;
+    const X = canFight ? segIntersect(a.anchor.x, a.anchor.y, la.x, la.y, b.anchor.x, b.anchor.y, lb.x, lb.y) : null;
     if (X) {
       if (!e) {
-        e = { dmgP: 0, dmgR: 0, last: now, x: X.x, y: X.y, luckP: rand(...FIGHT_LUCK), luckR: rand(...FIGHT_LUCK) };
-        game.fights.set(r.id, e); game.fightsSeen += 1;
+        e = { a, b, dmgA: 0, dmgB: 0, last: now, x: X.x, y: X.y, luckA: rand(...FIGHT_LUCK), luckB: rand(...FIGHT_LUCK) };
+        game.fights.set(key, e);
+        if (a.isPlayer || b.isPlayer) game.fightsSeen += 1;
       }
       e.last = now; e.x = X.x; e.y = X.y;
     }
     if (!e) continue;
     if (now - e.last < TOUCH_GRACE && canFight) {
-      sawing = true;
-      e.dmgR += SAW_RATE * sawPower(p, r) * e.luckP * rand(0.85, 1.15) * dt;            // your string cutting theirs
-      e.dmgP += SAW_RATE * sawPower(r, p) * r.sharp * e.luckR * rand(0.85, 1.15) * dt;  // theirs cutting yours
+      if (a.isPlayer || b.isPlayer) sawing = true;
+      e.dmgB += SAW_RATE * sawPower(la, lb) * a.sharp * e.luckA * rand(0.85, 1.15) * dt;   // a's string cutting b's
+      e.dmgA += SAW_RATE * sawPower(lb, la) * b.sharp * e.luckB * rand(0.85, 1.15) * dt;   // b's string cutting a's
       if (Math.random() < dt * 30) spark(e.x, e.y);
-      if (e.dmgR >= 1 || e.dmgP >= 1) {
-        game.fights.delete(r.id);
-        if (e.dmgR >= e.dmgP) cutKite(r, e.x, e.y); else cutKite(p, e.x, e.y);
+      if (e.dmgA >= 1 || e.dmgB >= 1) {
+        game.fights.delete(key);
+        if (e.dmgB >= e.dmgA) stringSnapped(b, a, e.x, e.y); else stringSnapped(a, b, e.x, e.y);
       }
     } else {
-      e.dmgP = Math.max(0, e.dmgP - 0.4 * dt); e.dmgR = Math.max(0, e.dmgR - 0.4 * dt);
-      if (e.dmgP === 0 && e.dmgR === 0) game.fights.delete(r.id);
+      e.dmgA = Math.max(0, e.dmgA - 0.4 * dt); e.dmgB = Math.max(0, e.dmgB - 0.4 * dt);
+      if (e.dmgA === 0 && e.dmgB === 0) game.fights.delete(key);
     }
   }
+  // forget fights with kites that are no longer up (cut, snagged, or a player who left)
+  const up = new Set(kites);
+  for (const [key, e] of game.fights) if (!up.has(e.a) || !up.has(e.b)) game.fights.delete(key);
   Sound.level(Sound.saw, sawing ? 0.09 : 0);
+}
+
+function stringSnapped(loser, winner, x, y) {
+  if (!game.mp) { cutKite(loser, x, y); return; }
+  // in a room the host decides every cut and tells all phones
+  const pid = pidOf(winner);
+  if (pid) MP.scores[pid] = (MP.scores[pid] || 0) + 1;
+  const m = { type: "cut", v: keyOf(loser), by: keyOf(winner), x: Math.round(x), y: Math.round(y) };
+  Net.send(m);
+  MP.cut(m);
 }
 
 function cutKite(k, x, y) {
@@ -822,7 +969,12 @@ function cutKite(k, x, y) {
   k.vx = game.wind * 1.2 + rand(-20, 20); k.vy = rand(25, 45); k.fallSpin = rand(-1.5, 1.5);
   k.loose = { ax: k.anchor.x, ay: k.anchor.y, x, y, t: 0 };     // the piece left in the flier's hands
   floater("चैट!", x, y - 30, k.isPlayer ? "#fff" : "#ffd21a", true);
-  game.fights.forEach((e, id) => { if (id === k.id) game.fights.delete(id); });
+  forgetFights(k);
+  if (game.mp) {                       // in a room the host keeps the score
+    if (k.isPlayer) loseKite("Your string was cut");
+    else game.nextSpawn = Math.max(game.nextSpawn, now + 2);
+    return;
+  }
   if (k.isPlayer) loseKite("Your string was cut");
   else {
     game.score += 1;
@@ -837,12 +989,28 @@ function snag(k) {
   if (k.state !== "fly") return;
   k.state = "snagged"; k.y = ROOF_Y; k.snagT = now;
   Sound.snag();
-  game.fights.delete(k.id);
+  forgetFights(k);
   if (k.isPlayer) { floater("तारमा अड्कियो!", k.x, ROOF_Y - 60, "#fff", true); loseKite("Snagged on the wires"); }
   else game.nextSpawn = Math.max(game.nextSpawn, now + 1.5);
 }
 
 function loseKite(reason) {
+  const g = game;
+  if (g.mp) {
+    // in a room there's no limit: a new kite goes up after a moment
+    g.lastLoss = reason;
+    forgetFights(g.player);
+    Sound.lose();
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+    setTimeout(() => {
+      if (game !== g || g.over) return;
+      MP.gen++;
+      g.player = MP.newKite();
+      g.player.pulling = holding;
+      setHint("नयाँ चङ्गा! New kite");
+    }, 1600);
+    return;
+  }
   game.lives -= 1;
   game.lastLoss = reason;
   game.fights.clear();
@@ -851,7 +1019,7 @@ function loseKite(reason) {
   if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
   if (game.lives <= 0) { setTimeout(endGame, 1600); return; }
   setTimeout(() => {
-    if (!game || game.over) return;
+    if (game !== g || game.over) return;
     game.player = playerKite(game.player.anchor);
     game.player.pulling = holding;
     setHint("नयाँ चङ्गा! New kite");
@@ -867,18 +1035,21 @@ function floater(text, x, y, color, big) { floaters.push({ text, x, y, color, bi
 
 function update(dt) {
   now += dt;
-  for (const cl of clouds) { cl.x += (game ? game.wind : 20) * 0.15 * dt; if (cl.x > W + 150) cl.x = -150; if (cl.x < -150) cl.x = W + 150; }
+  for (const cl of clouds) { cl.x += (game ? game.wind : 20) * 0.15 * dt; if (cl.x > VW + 150) cl.x = -150; if (cl.x < -150) cl.x = VW + 150; }
   sparks.forEach(s => { s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 200 * dt; });
   sparks = sparks.filter(s => s.t < 0.4);
   floaters.forEach(f => { f.t += dt; f.y -= 40 * dt; });
   floaters = floaters.filter(f => f.t < (f.big ? 1.5 : 1.1));
   if (!game || game.over) return;
+  const runsWorld = !game.mp || MP.host;    // alone, or the host of a room: wind, computer kites, fights
 
-  // wind: a slow drift with gusts
-  game.windT += dt;
-  if (game.windT > game.windNext) {
-    game.windT = 0; game.windNext = rand(3, 7);
-    game.windTarget = rand(-WIND_MAX, WIND_MAX);
+  // wind: a slow drift with gusts (in a room, every phone follows the host's wind)
+  if (runsWorld) {
+    game.windT += dt;
+    if (game.windT > game.windNext) {
+      game.windT = 0; game.windNext = rand(3, 7);
+      game.windTarget = rand(-WIND_MAX, WIND_MAX);
+    }
   }
   game.wind = lerp(game.wind, game.windTarget, 1 - Math.exp(-dt * 0.8));
 
@@ -891,7 +1062,9 @@ function update(dt) {
     if (p.paying) Sound.click();
   }
 
-  for (const r of game.rivals) {
+  if (game.mp) MP.follow();                 // other players' kites (and, off the host, the computer kites)
+
+  if (runsWorld) for (const r of game.rivals) {
     if (r.state !== "fly") continue;
     r.think -= dt;
     if (r.think <= 0) { r.think = rand(0.1, 0.18); decideRival(r); }
@@ -899,31 +1072,47 @@ function update(dt) {
   }
 
   // cut and snagged kites drift down and away
-  for (const k of [...game.rivals, game.player]) {
+  for (const k of runsWorld ? [...game.rivals, game.player] : [game.player]) {
     if (k.state === "falling") {
       k.x += (k.vx + Math.sin(now * 3 + k.id * 9) * 30) * dt; k.y += k.vy * dt; k.th += k.fallSpin * dt;
       k.loose.t += dt;
     }
   }
-  game.rivals = game.rivals.filter(r => !(r.state === "falling" && (r.y > 1050 || r.x < -100 || r.x > W + 100)) && !(r.state === "snagged" && now - r.snagT > 2.5));
-
-  updateFights(dt);
-
-  if (game.rivals.filter(r => r.state === "fly").length < maxRivals() && now > game.nextSpawn) {
-    spawnRival();
-    game.nextSpawn = now + 1;
-  }
+  if (runsWorld) {
+    game.rivals = game.rivals.filter(r => !(r.state === "falling" && (r.y > 1050 || r.x < -100 || r.x > W + 100)) && !(r.state === "snagged" && now - r.snagT > 2.5));
+    updateFights(dt);
+    const want = game.mp ? MP.rivalsWanted() : maxRivals();
+    if (game.rivals.filter(r => r.state === "fly").length < want && now > game.nextSpawn) {
+      spawnRival();
+      game.nextSpawn = now + 1;
+    }
+  } else MP.showFights(dt);
 
   // teach the two techniques during the first fights
-  const e = p.state === "fly" ? [...game.fights.entries()].find(([, f]) => now - f.last < TOUCH_GRACE) : null;
-  if (e && game.fightsSeen <= 4) {
-    const r = game.rivals.find(k => k.id === e[0]);
-    if (r) setHint(p.y < r.y - HEIGHT_EDGE ? "You're higher: hold to pull (खिच)!" : p.y > r.y + HEIGHT_EDGE ? "You're lower: let go (ढिल)!" : "Level: either works");
-  } else if (game.introUntil > now) setHint("Let go: it spins · Hold: it flies where it points");
+  const foe = myFoe();
+  if (foe) game.fightTime += dt;
+  if (MP.reconnecting) setHint("जोड्दै… Reconnecting");
+  else if (foe && (game.mp ? game.fightTime < 15 : game.fightsSeen <= 4)) {
+    const fy = latest(foe).y;
+    setHint(p.y < fy - HEIGHT_EDGE ? "You're higher: hold to pull (खिच)!" : p.y > fy + HEIGHT_EDGE ? "You're lower: let go (ढिल)!" : "Level: either works");
+  } else if (game.introUntil > now) setHint(game.mp ? `Most चैट in ${ROUND_SECONDS / 60} minutes wins!` : "Let go: it spins · Hold: it flies where it points");
   else setHint("");
 
   Sound.level(Sound.wind, 0.03 + Math.abs(game.wind) / WIND_MAX * 0.05);
   $("wind").textContent = `हावा ${game.wind >= 0 ? "→" : "←"}${Math.abs(game.wind) > WIND_MAX * 0.6 ? (game.wind >= 0 ? "→" : "←") : ""}`;
+  if (game.mp) MP.tick(dt);
+}
+
+// the kite your string is crossing right now, if any
+function myFoe() {
+  const p = game.player;
+  if (!p || p.state !== "fly") return null;
+  if (game.mp && !MP.host) {
+    const me = "s" + MP.seat, f = MP.fightsView.find(f => f.a === me || f.b === me);
+    return f ? kiteByKey(f.a === me ? f.b : f.a) : null;
+  }
+  const e = fightOf(p);
+  return e ? (e.a === p ? e.b : e.a) : null;
 }
 
 // ============================================================================
@@ -989,8 +1178,12 @@ function drawLattai(p) {
   ctx.restore();
 }
 
+// dx = 0 draws across the whole screen (clouds); dx = ox draws in the sky the kites fly in
+function setView(dx) { const k = dpr * scale; ctx.setTransform(k, 0, 0, k, k * dx, k * oy); }
+
 function draw() {
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0); ctx.restore();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0);
+  setView(0);
   // drifting clouds
   ctx.fillStyle = "rgba(255,255,255,.85)";
   for (const cl of clouds) {
@@ -999,36 +1192,36 @@ function draw() {
     ctx.ellipse(cl.x + 30 * cl.s, cl.y - 12 * cl.s, 34 * cl.s, 18 * cl.s, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+  setView(ox);
   if (!game) { drawKite(W / 2, 380, Math.sin(now) * 0.3, "ambe"); return; }
 
-  // rivals: flier, string, kite
-  for (const r of game.rivals) {
-    const col = STYLES[r.style].base;
-    drawFlier(r.anchor.x, r.anchor.y, STYLES[r.style].mark);
+  // other fliers: computer kites, and in a room the other players
+  const others = game.mp ? [...game.rivals, ...MP.remotes.values()] : game.rivals;
+  for (const r of others) {
+    if (r.ready === false) continue;                    // no position from that phone yet
+    if (game.mp && !r.remote) drawRoof(r.anchor.x, r.anchor.y);
+    drawFlier(r.anchor.x, r.anchor.y + (r.remote ? 12 : 0), STYLES[r.style].mark);
     if (r.state === "fly" || r.state === "snagged") drawString(r.anchor.x, r.anchor.y, r.x, r.y, r.L, "rgba(255,255,255,.75)");
     drawCut(r);
-    drawKite(r.x, r.y, r.th, r.style, r.state === "snagged" ? 0.7 : 1);
-    if (r.state === "fly") { ctx.fillStyle = col; }
+    drawKite(r.x, r.y, r.th, r.style, r.away ? 0.35 : r.state === "snagged" ? 0.7 : 1);
   }
+  if (game.mp) drawNames();
   const p = game.player;
   if (p.state === "fly" || p.state === "snagged") drawString(p.anchor.x, p.anchor.y, p.x, p.y, p.L, "rgba(255, 236, 160, .95)");
   drawCut(p);
   const blink = p.state === "fly" && now < p.safeUntil && Math.floor(now * 8) % 2 === 0;
-  drawKite(p.x, p.y, p.th, "ambe", blink ? 0.45 : 1);
+  drawKite(p.x, p.y, p.th, p.style, blink ? 0.45 : 1);
   drawLattai(p);
 
-  // string health bars at each crossing
-  for (const [id, e] of game.fights) {
-    if (now - e.last > TOUCH_GRACE) continue;
-    const r = game.rivals.find(k => k.id === id);
-    if (!r) continue;
-    const bw = 70, y0 = e.y - 34;
-    for (const [i, dmg, color] of [[0, e.dmgP, "#ffd21a"], [1, e.dmgR, STYLES[r.style].base]]) {
+  // string health bars at each crossing, in each kite's color
+  for (const f of fightBars()) {
+    const bw = 70, y0 = f.y - 34;
+    for (const [i, dmg, k] of [[0, f.dA, f.a], [1, f.dB, f.b]]) {
       const y = y0 + i * 11;
-      ctx.fillStyle = "rgba(20,20,20,.8)"; ctx.fillRect(e.x - bw / 2 - 2, y - 2, bw + 4, 9);
-      ctx.fillStyle = color; ctx.fillRect(e.x - bw / 2, y, bw * clamp(1 - dmg, 0, 1), 5);
+      ctx.fillStyle = "rgba(20,20,20,.8)"; ctx.fillRect(f.x - bw / 2 - 2, y - 2, bw + 4, 9);
+      ctx.fillStyle = STYLES[k.style].base; ctx.fillRect(f.x - bw / 2, y, bw * clamp(1 - dmg, 0, 1), 5);
     }
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(e.x, e.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(f.x, f.y, 4, 0, Math.PI * 2); ctx.fill();
   }
 
   // sparks where majha grinds on majha
@@ -1044,6 +1237,35 @@ function draw() {
     ctx.strokeText(f.text, x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, f.y);
   }
   ctx.globalAlpha = 1;
+}
+
+// fights to draw: worked out here, or (in a room, off the host) as the host last sent them
+function fightBars() {
+  if (game.mp && !MP.host) {
+    return MP.fightsView.map(f => ({ ...f, a: kiteByKey(f.a), b: kiteByKey(f.b) })).filter(f => f.a && f.b);
+  }
+  return [...game.fights.values()].filter(e => now - e.last <= TOUCH_GRACE)
+    .map(e => ({ x: e.x, y: e.y, a: e.a, b: e.b, dA: e.dmgA, dB: e.dmgB }));
+}
+
+function drawRoof(ax, ay) {
+  // in a room the computer kites fly from fixed rooftops, drawn the same on every phone
+  const top = ay + 18;
+  ctx.fillStyle = "#a44a35"; ctx.fillRect(ax - 26, top, 52, 935 - top);
+  ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(ax - 26, top, 52, 5);
+  ctx.fillStyle = "#3e2723";
+  for (let wy = top + 16; wy < 915; wy += 34) { ctx.fillRect(ax - 16, wy, 10, 14); ctx.fillRect(ax + 6, wy, 10, 14); }
+}
+
+function drawNames() {
+  // each player's name, painted on the rooftop wall under where they stand
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = '800 19px "Baloo 2", sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = "#141414";
+  for (const row of MP.standings(true)) {
+    const x = seatAnchor(row.seat).x, name = row.name.slice(0, 8);
+    ctx.fillStyle = row.me ? "#ffd21a" : "#fff";
+    ctx.strokeText(name, x, 962); ctx.fillText(name, x, 962);
+  }
 }
 
 function drawCut(k) {
@@ -1092,12 +1314,12 @@ stage.addEventListener("pointerup", pointerUp);
 stage.addEventListener("pointercancel", pointerUp);
 let keyHeld = false;
 window.addEventListener("keydown", e => {
-  if (e.code !== "Space" || e.repeat) return;
+  if (e.code !== "Space" || e.repeat || e.target.tagName === "INPUT") return;
   if (!$("startScreen").hidden || !$("resultScreen").hidden || paused) return;
   e.preventDefault(); Sound.init(); keyHeld = true; holding = true;
 });
 window.addEventListener("keyup", e => {
-  if (e.code !== "Space") return;
+  if (e.code !== "Space" || e.target.tagName === "INPUT") return;
   e.preventDefault(); keyHeld = false; holding = activePointer !== null;
 });
 
@@ -1114,6 +1336,8 @@ function setHint(text) {
 }
 
 function updateHud() {
+  $("scoreboard").hidden = !(game && game.mp);
+  if (game && game.mp) { MP.hud(); return; }
   const lives = game ? game.lives : START_KITES;
   $("lives").textContent = `चङ्गा ${"◆".repeat(Math.max(lives, 0))}${"◇".repeat(START_KITES - Math.max(lives, 0))}`;
   $("score").textContent = toNep(game ? game.score : 0);
@@ -1126,7 +1350,7 @@ function start() {
   $("resultScreen").hidden = true;
   holding = false; keyHeld = false; activePointer = null;
   game = {
-    player: null, rivals: [], fights: new Map(), fightsSeen: 0,
+    player: null, rivals: [], fights: new Map(), fightsSeen: 0, fightTime: 0,
     score: 0, lives: START_KITES, over: false, lastLoss: "",
     wind: rand(20, 45), windTarget: rand(20, 45), windT: 0, windNext: 5,
     nextSpawn: now + 2.5, introUntil: now + 6,
@@ -1149,20 +1373,27 @@ function endGame() {
   $("resultScore").textContent = `${toNep(game.score)} चैट`;
   $("resultNote").textContent = `${line} You cut ${game.score} kite${game.score === 1 ? "" : "s"}. Last kite: ${game.lastLoss.toLowerCase()}. Best ${best}.`;
   $("newRecord").hidden = !newRecord || game.score === 0;
+  $("standings").hidden = true; $("leaveBtn").hidden = true;
+  $("againBtn").textContent = "फेरि उडाऔं · Fly again"; $("againBtn").disabled = false;
   $("resultScreen").hidden = false;
   setHint("");
 }
 
 function shareText() {
+  if (game.mp) {
+    const rows = MP.standings(false), mine = MP.scores[MP.pid] || 0;
+    return `🪁 चङ्गा चैट with friends: I cut ${mine} kite${mine === 1 ? "" : "s"} and came ${ordinal(1 + rows.filter(r => r.cuts > mine).length)} of ${rows.length}!`;
+  }
   return `🪁 चङ्गा चैट: I cut ${toNep(game.score)} kites (${game.score}) this Dashain! Can you beat me?`;
 }
 
 $("startBtn").addEventListener("click", start);
 
-let howFromStart = false;
+let howReturn = null;        // the screen to show again when the guide closes
 function openHow(fromStart) {
-  howFromStart = fromStart;
-  if (!fromStart && game && !game.over && !paused) {
+  howReturn = !$("roomScreen").hidden ? "roomScreen" : fromStart ? "startScreen" : null;
+  $("roomScreen").hidden = true;
+  if (!fromStart && game && !game.mp && !game.over && !paused) {
     paused = true;
     holding = false; keyHeld = false; activePointer = null;
     Music.stop();
@@ -1173,19 +1404,19 @@ function openHow(fromStart) {
 }
 function closeHow() {
   $("howScreen").hidden = true;
-  if (howFromStart) { $("startScreen").hidden = false; return; }
+  if (howReturn) { $(howReturn).hidden = false; return; }
   if (paused) { paused = false; lastT = performance.now(); Music.start(); }
 }
 $("howBtn").addEventListener("click", () => openHow(true));
 $("helpBtn").addEventListener("click", () => {
   if (!$("resultScreen").hidden || !$("howScreen").hidden) return;
-  openHow(!$("startScreen").hidden || !game || game.over);
+  openHow(!$("startScreen").hidden || !$("roomScreen").hidden || !game || game.over);
 });
 $("howClose").addEventListener("click", closeHow);
-$("againBtn").addEventListener("click", start);
+$("againBtn").addEventListener("click", () => (MP.inRoom ? MP.playAgain() : start()));
 $("shareBtn").addEventListener("click", async () => {
   const text = shareText();
-  const url = location.href.split("#")[0];
+  const url = location.origin + location.pathname;        // never the room link: a finished game isn't an invite
   try {
     if (navigator.share) await navigator.share({ title: "Changa Chait", text, url });
     else {
@@ -1202,10 +1433,557 @@ $("mute").addEventListener("click", () => {
   Music.setMuted(Sound.muted);
 });
 
+// ============================================================================
+// Playing with friends (version 2.0). Up to 5 phones share one sky through the room
+// server (relay/ in this repo), which passes each phone's messages to the others.
+// Every phone flies its own kite and sends it NET_RATE times a second. One phone, the
+// host, runs the wind, the computer kites and every fight, so all phones agree on who
+// cut whom. The host is whoever made the room; if the host leaves, the player in the
+// lowest seat takes over.
+// ============================================================================
+const STATE_CODE = { fly: "f", falling: "x", snagged: "n" };
+const CODE_STATE = { f: "fly", x: "falling", n: "snagged" };
+const ROOM_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";      // no I or O: they look like 1 and 0
+const newCode = () => Array.from({ length: 4 }, () => ROOM_LETTERS[Math.floor(Math.random() * ROOM_LETTERS.length)]).join("");
+const cleanName = s => String(s || "").replace(/[<>&"]/g, "").trim().slice(0, 12);
+const ordinal = n => n + (["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || "th");
+const seatAnchor = seat => ({ x: SEAT_X[seat] * SKY_W, y: 905 });
+const keyOf = k => k.isPlayer ? "s" + MP.seat : k.remote ? "s" + k.seat : k.key;
+const pidOf = k => k.isPlayer ? MP.pid : k.remote ? (MP.players.get(k.seat) || {}).pid : null;
+
+function kiteByKey(key) {
+  if (key === "s" + MP.seat) return game.player;
+  if (key[0] === "s") return MP.remotes.get(+key.slice(1)) || null;
+  return game.rivals.find(r => r.key === key) || null;
+}
+
+// still up, and still the current kite of a player who is still here
+function stillFlying(k) {
+  if (!k || latest(k).state !== "fly") return false;
+  if (k.isPlayer) return k === game.player;
+  return MP.remotes.get(k.seat) === k && !k.away;
+}
+
+// Positions from another phone, drawn a little in the past so the next position has
+// already arrived: kites move smoothly even when messages arrive unevenly. Each stream
+// measures its own jitter, so a player on a shaky connection gets more smoothing.
+class Track {
+  constructor() { this.s = []; this.off = Infinity; this.late = []; this.delay = NET_DELAY[0]; this.seen = performance.now(); }
+  push(t, st) {
+    const arrived = performance.now(), last = this.s[this.s.length - 1];
+    if (last && t <= last.t) return false;                           // late or repeated
+    this.off = Math.min(this.off, arrived - t);                      // the fastest trip so far
+    this.late.push(arrived - t - this.off);                          // how much slower than that this one was
+    if (this.late.length > JITTER_WINDOW) this.late.shift();
+    const late = [...this.late].sort((a, b) => a - b);
+    const jitter = late[Math.floor((late.length - 1) * JITTER_SHARE)];
+    this.delay = clamp(1000 / NET_RATE + jitter + NET_MARGIN, NET_DELAY[0], NET_DELAY[1]);
+    st.t = t;
+    this.s.push(st);
+    if (this.s.length > 30) this.s.shift();
+    this.seen = arrived;
+    return true;
+  }
+  at() {
+    const s = this.s;
+    if (!s.length) return null;
+    const t = performance.now() - this.off - this.delay;
+    const end = s[s.length - 1];
+    if (t >= end.t) {
+      // the next update is late: coast on the last heading for a moment instead of stopping
+      const prev = s[s.length - 2];
+      if (!prev || prev.s !== end.s || end.t - prev.t > 300) return end;
+      const f = Math.min(t - end.t, COAST_MS) / (end.t - prev.t);
+      return { ...end, x: end.x + (end.x - prev.x) * f, y: end.y + (end.y - prev.y) * f, L: end.L + (end.L - prev.L) * f,
+               th: end.th + angDiff(end.th, prev.th) * f };
+    }
+    if (t <= s[0].t) return s[0];
+    let i = s.length - 1;
+    while (s[i - 1].t > t) i--;
+    const a = s[i - 1], b = s[i], f = (t - a.t) / (b.t - a.t);
+    return { ...b, x: lerp(a.x, b.x, f), y: lerp(a.y, b.y, f), L: lerp(a.L, b.L, f), th: a.th + angDiff(b.th, a.th) * f };
+  }
+  away() { return performance.now() - this.seen > AWAY_AFTER * 1000; }
+}
+
+function applyTrack(k) {
+  const st = k.track.at();
+  if (!st) return;
+  k.ready = true;
+  k.x = st.x; k.y = st.y; k.th = st.th; k.L = st.L; k.pulling = !!st.p;
+  const state = CODE_STATE[st.s] || "fly";
+  if (state === "falling" && k.state !== "falling") { k.dangle = 80; k.loose = { t: 9 }; }
+  k.state = state;
+  k.safeUntil = st.z ? now + 0.3 : 0;
+  k.away = k.track.away();
+}
+
+const Net = {
+  ws: null, quitting: false, heard: 0,          // heard: when the last message arrived
+  open(code) {
+    this.quitting = false;
+    this.heard = performance.now();             // give a new connection time to hear its welcome
+    let ws;
+    try { ws = new WebSocket(`${RELAY_URL}/room/${code}`); } catch (_) { setTimeout(() => MP.closed(false), 0); return; }
+    this.ws = ws;
+    let welcomed = false;
+    const timer = setTimeout(() => { if (!welcomed) ws.close(); }, 10000);
+    ws.onmessage = e => {
+      this.heard = performance.now();
+      let m;
+      try { m = JSON.parse(e.data); } catch (_) { return; }
+      if (m.type === "welcome") { welcomed = true; clearTimeout(timer); }
+      MP.receive(m);
+    };
+    ws.onclose = () => {
+      clearTimeout(timer);
+      if (this.ws !== ws) return;
+      this.ws = null;
+      if (!this.quitting) MP.closed(welcomed);
+    };
+  },
+  send(m) { if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m)); },
+  close() { this.quitting = true; const ws = this.ws; this.ws = null; if (ws) ws.close(); },
+  // a connection that went quiet without closing (common on mobile networks): drop it and reconnect
+  drop() { const ws = this.ws; this.ws = null; if (ws) ws.close(); MP.closed(true); },
+};
+
+const MP = {
+  inRoom: false, mode: "", code: "", seat: -1, hostSeat: -1, tries: 0, retries: 0, reconnecting: false,
+  pid: Math.random().toString(36).slice(2, 8),   // this phone, for the scores (a seat can change on reconnect)
+  name: "",
+  seats: new Set(),          // every seat in the room, mine too
+  players: new Map(),        // seat -> { pid, name } of the other players
+  remotes: new Map(),        // seat -> the other players' kites
+  scores: {},                // pid -> kites cut this round (the host keeps the real count)
+  fightsView: [], worldAt: 0, left: 0, leftAt: 0, roundEnds: 0, sendT: 0, gen: 0, rivalSeq: 0,
+  get host() { return this.inRoom && this.seat === this.hostSeat; },
+
+  connect(code, mode) { this.code = code; this.mode = mode; Net.open(code); },
+
+  receive(m) {
+    if (m.type === "welcome") { this.welcome(m); return; }
+    if (!this.inRoom) return;
+    switch (m.type) {
+      case "join": this.seats.add(m.seat); this.hello(); break;          // say who we are to the newcomer
+      case "leave": this.dropSeat(m.seat); break;
+      case "hello":
+        this.seats.add(m.seat);
+        this.players.set(m.seat, { pid: String(m.pid).slice(0, 12), name: cleanName(m.name) });
+        if (m.host) this.claim(m.seat);
+        break;
+      case "k": this.kite(m); break;
+      case "w":
+        if (this.hostSeat < 0) this.hostSeat = m.seat;                     // only the host sends the world
+        if (m.seat === this.hostSeat && !this.host) this.world(m);
+        break;
+      case "start": if (m.seat === this.hostSeat) startRound(+m.seconds || ROUND_SECONDS); break;
+      case "end": if (m.seat === this.hostSeat) endRound(m.sc); break;
+      case "cut": if (m.seat === this.hostSeat) this.cut(m); break;
+    }
+    this.renderLobby();
+  },
+
+  welcome(m) {
+    const others = (m.players || []).filter(s => s !== m.seat);
+    if (this.mode === "create" && others.length) {                      // someone already uses this code
+      Net.close();
+      if (this.tries++ < 3) this.connect(newCode(), "create"); else this.fail("Could not make a room. Try again.");
+      return;
+    }
+    if (this.mode === "join" && !others.length) {
+      Net.close();
+      this.fail(`No room with code ${this.code}. Check the code, or make a room.`);
+      return;
+    }
+    const wasIn = this.inRoom;
+    this.inRoom = true; this.reconnecting = false; this.retries = 0;
+    this.seat = m.seat;
+    this.seats = new Set([...others, m.seat]);
+    for (const s of [...this.players.keys()]) if (!this.seats.has(s)) this.players.delete(s);
+    this.hostSeat = others.length ? (this.seats.has(this.hostSeat) && this.hostSeat !== m.seat ? this.hostSeat : -1) : m.seat;
+    this.hello();
+    resize();
+    if (!wasIn) { this.showWait(); return; }
+    // back after a dropped connection (maybe in a different seat)
+    if (game && game.mp && !game.over) { forgetFights(game.player); this.gen++; game.player = this.newKite(); }
+    if (this.host) this.takeOver();
+  },
+
+  hello() { Net.send({ type: "hello", pid: this.pid, name: this.name, host: this.host }); },
+
+  // someone says they are the host; if two phones think so, the lower seat keeps it
+  claim(seat) {
+    if (this.host && this.seat < seat) { this.hello(); return; }
+    this.hostSeat = seat;
+  },
+
+  dropSeat(seat) {
+    this.seats.delete(seat);
+    this.players.delete(seat);
+    const v = this.remotes.get(seat);
+    if (v) forgetFights(v);
+    this.remotes.delete(seat);
+    if (seat === this.hostSeat) {
+      this.hostSeat = Math.min(...this.seats);
+      if (this.host) { this.hello(); this.takeOver(); }
+    }
+  },
+
+  // this phone just became the host: carry on the round from where the old host left it
+  takeOver() {
+    if (game && game.mp && !game.over) {
+      this.roundEnds = now + Math.max(0, this.left - (performance.now() - this.leftAt) / 1000);
+      game.rivals = []; game.fights.clear(); this.fightsView = [];
+      game.nextSpawn = now + 1;
+    }
+    if (game && game.mp && game.over) showMpResult();
+  },
+
+  closed(welcomed) {
+    if (!this.inRoom) {
+      this.fail(this.mode === "create" ? "Could not reach the game server. Try again later, or fly alone."
+        : "Could not join. The room may be full (5 players), or the server is busy.");
+      return;
+    }
+    // the connection dropped: try to get back into the same room
+    if (this.retries >= 5) {
+      const code = this.code;
+      leaveRoom();
+      showRoomScreen();
+      $("roomError").textContent = `Lost the connection to room ${code}.`;
+      return;
+    }
+    this.retries++;
+    this.reconnecting = true;
+    setTimeout(() => { if (this.inRoom && !Net.ws) this.connect(this.code, "rejoin"); }, 1000 * this.retries);
+  },
+
+  fail(text) {
+    $("roomError").textContent = text;
+    $("createBtn").disabled = $("joinBtn").disabled = false;
+    $("createBtn").textContent = "कोठा बनाउनुस् · Create a room";
+    $("joinBtn").textContent = "Join";
+  },
+
+  newKite() {
+    const k = playerKite(seatAnchor(this.seat), SEAT_STYLES[this.seat]);
+    k.key = "s" + this.seat;
+    return k;
+  },
+
+  // other players' kites, as the fights and the computer kites see them
+  remoteKites() {
+    return [...this.remotes.values()].filter(v => v.ready && !v.away && v.live && v.live.state === "fly" && !(v.cutUntil > now));
+  },
+
+  rivalsWanted() { return clamp(4 - this.seats.size, 0, 3); },
+
+  timeLeft() {
+    if (this.host) return this.roundEnds - now;
+    return this.left - (performance.now() - this.leftAt) / 1000;
+  },
+
+  // every seat in the room with name and kites cut, best first (or in seat order)
+  standings(bySeat) {
+    const rows = [...this.seats].map(seat => {
+      const me = seat === this.seat;
+      const p = me ? { pid: this.pid, name: this.name } : this.players.get(seat) || { pid: "", name: "" };
+      return { seat, me, host: seat === this.hostSeat, pid: p.pid, name: p.name || `Player ${seat + 1}`,
+               style: SEAT_STYLES[seat], cuts: this.scores[p.pid] || 0 };
+    });
+    return rows.sort(bySeat ? (a, b) => a.seat - b.seat : (a, b) => b.cuts - a.cuts || a.seat - b.seat);
+  },
+
+  kite(m) {
+    if (!game || !game.mp || game.over || m.seat === this.seat) return;
+    let v = this.remotes.get(m.seat);
+    if (!v || v.gen !== m.g) {                         // a new kite: don't slide from the old one
+      if (v) forgetFights(v);
+      v = { remote: true, isPlayer: false, id: Math.random(), seat: m.seat, gen: m.g, style: SEAT_STYLES[m.seat] || "sete",
+            anchor: seatAnchor(m.seat), sharp: 1, track: new Track(), ready: false,
+            x: 0, y: 0, th: 0, L: 200, state: "fly", pulling: false, safeUntil: 0 };
+      this.remotes.set(m.seat, v);
+    }
+    const st = { x: +m.x, y: +m.y, th: +m.a, L: +m.L, p: m.p, s: m.s, z: m.z };
+    if (v.track.push(+m.t, st)) v.live = { x: st.x, y: st.y, L: st.L, pulling: !!st.p, state: CODE_STATE[st.s] || "fly" };
+  },
+
+  follow() {
+    for (const v of this.remotes.values()) applyTrack(v);
+    if (!this.host) for (const r of game.rivals) applyTrack(r);
+  },
+
+  // the host's world: wind, time left, computer kites, fights and scores
+  sendWorld() {
+    const r = game.rivals.map(k => [k.key, k.spot, Math.round(k.x), Math.round(k.y), +k.th.toFixed(2), Math.round(k.L),
+                                    k.pulling ? 1 : 0, STATE_CODE[k.state]]);
+    const f = [];
+    for (const e of game.fights.values()) {
+      if (now - e.last < TOUCH_GRACE) f.push([keyOf(e.a), keyOf(e.b), +e.dmgA.toFixed(2), +e.dmgB.toFixed(2), Math.round(e.x), Math.round(e.y)]);
+    }
+    Net.send({ type: "w", t: Math.round(performance.now()), wind: Math.round(game.wind), left: +this.timeLeft().toFixed(1),
+               r, f, sc: this.scores });
+  },
+
+  world(m) {
+    this.left = +m.left; this.leftAt = this.worldAt = performance.now();
+    this.scores = m.sc || {};
+    if (!game) { if (this.left > 1) startRound(this.left); else return; }   // joined mid-round: jump in
+    if (game.over) return;
+    game.windTarget = +m.wind;
+    this.fightsView = (m.f || []).map(([a, b, dA, dB, x, y]) => ({ a, b, dA, dB, x, y }));
+    const keep = new Set();
+    for (const [key, spot, x, y, th, L, p, s] of m.r || []) {
+      keep.add(key);
+      let k = game.rivals.find(o => o.key === key);
+      if (!k) {
+        const [sx, sy] = RIVAL_SPOTS[spot] || RIVAL_SPOTS[0];
+        k = { key, spot, id: Math.random(), isPlayer: false, style: "sete", anchor: { x: sx, y: sy - 22 },
+              track: new Track(), ready: false, x, y, th, L, state: "fly" };
+        game.rivals.push(k);
+      }
+      k.track.push(+m.t, { x, y, th, L, p, s });
+    }
+    game.rivals = game.rivals.filter(k => keep.has(k.key));
+  },
+
+  // off the host: sparks and the sawing sound for the fights the host reports
+  showFights(dt) {
+    if (performance.now() - this.worldAt > 1000) this.fightsView = [];
+    const me = "s" + this.seat;
+    let sawing = false;
+    for (const f of this.fightsView) {
+      if (Math.random() < dt * 30) spark(f.x, f.y);
+      if (f.a === me || f.b === me) sawing = true;
+    }
+    Sound.level(Sound.saw, sawing ? 0.09 : 0);
+  },
+
+  // a string was cut (decided by the host)
+  cut(m) {
+    if (!game || !game.mp || game.over) return;
+    const mine = "s" + this.seat, k = kiteByKey(m.v);
+    if (m.v === mine) { if (game.player.state === "fly") cutKite(game.player, m.x, m.y); }
+    else if (this.host && k && !k.remote) cutKite(k, m.x, m.y);           // a computer kite: the host flies those
+    else {
+      floater("चैट!", m.x, m.y - 30, "#ffd21a", true);
+      if (k && k.remote) { k.cutUntil = now + 1.5; forgetFights(k); }
+    }
+    if (m.by === mine) { Sound.cheer(); if (navigator.vibrate) navigator.vibrate([30, 30, 60]); }
+  },
+
+  // every frame of a round: send my kite (and, as host, the world) NET_RATE times a second
+  tick(dt) {
+    if (!this.host && Net.ws && performance.now() - Net.heard > 6000) { Net.drop(); return; }   // the host sends 10 times a second
+    if (this.host && this.timeLeft() <= 0) {
+      Net.send({ type: "end", sc: this.scores });
+      endRound(this.scores);
+      return;
+    }
+    this.sendT -= dt;
+    if (this.sendT > 0) return;
+    this.sendT = Math.max(0, this.sendT + 1 / NET_RATE);
+    const p = game.player;
+    Net.send({ type: "k", t: Math.round(performance.now()), g: this.gen, x: Math.round(p.x), y: Math.round(p.y),
+               a: +p.th.toFixed(2), L: Math.round(p.L), p: p.pulling ? 1 : 0, s: STATE_CODE[p.state], z: now < p.safeUntil ? 1 : 0 });
+    if (this.host) this.sendWorld();
+    this.hud();
+  },
+
+  hud() {
+    const left = Math.max(0, Math.ceil(this.timeLeft()));
+    $("lives").textContent = `⏱ ${toNep(Math.floor(left / 60))}:${toNep(String(left % 60).padStart(2, "0"))}`;
+    $("score").textContent = toNep(this.scores[this.pid] || 0);
+    $("bestChip").textContent = `कोठा ${this.code}`;
+    const board = $("scoreboard");
+    board.replaceChildren(...this.standings(false).map(row => {
+      const el = document.createElement("span");
+      if (row.me) el.className = "me";
+      const dot = document.createElement("i");
+      dot.className = "dot"; dot.style.background = STYLES[row.style].base;
+      el.append(dot, `${row.name} ${toNep(row.cuts)}`);
+      return el;
+    }));
+  },
+
+  playAgain() {
+    if (!this.host) return;
+    Net.send({ type: "start", seconds: ROUND_SECONDS });
+    startRound(ROUND_SECONDS);
+  },
+
+  showWait() {
+    $("roomChoose").hidden = true;
+    $("roomWait").hidden = false;
+    $("roomError").textContent = "";
+    $("roomCode").textContent = this.code;
+    $("roomBack").textContent = "कोठा छोड्नुस् · Leave room";
+    this.renderLobby();
+  },
+
+  renderLobby() {
+    if ($("roomScreen").hidden || $("roomWait").hidden) return;
+    const list = $("playerList");
+    list.replaceChildren(...this.standings(true).map(row => {
+      const li = document.createElement("li");
+      const dot = document.createElement("i");
+      dot.className = "dot"; dot.style.background = STYLES[row.style].base;
+      const tag = document.createElement("small");
+      tag.textContent = [row.me && "you", row.host && "host"].filter(Boolean).join(" · ");
+      li.append(dot, row.name, tag);
+      return li;
+    }));
+    const n = this.seats.size, hostRow = this.standings(true).find(r => r.host);
+    $("roundBtn").hidden = !this.host;
+    $("roundBtn").disabled = n < 2;
+    $("roomNote").textContent = this.host
+      ? (n < 2 ? "Share the code with friends. Start when someone joins." : `${n} players. Start when everyone is in.`)
+      : hostRow ? `Waiting for ${hostRow.name} to start…` : "Joining…";
+  },
+};
+
+function startRound(seconds) {
+  Sound.init();
+  for (const id of ["startScreen", "resultScreen", "roomScreen", "howScreen"]) $(id).hidden = true;
+  paused = false;
+  holding = false; keyHeld = false; activePointer = null;
+  game = {
+    mp: true, player: null, rivals: [], fights: new Map(), fightsSeen: 0, fightTime: 0,
+    score: 0, lives: START_KITES, over: false, lastLoss: "",
+    wind: rand(20, 45), windTarget: rand(20, 45), windT: 0, windNext: 5,
+    nextSpawn: now + 2.5, introUntil: now + 5,
+  };
+  MP.remotes.clear(); MP.fightsView = []; MP.gen++;
+  if (MP.host) MP.scores = {};
+  game.player = MP.newKite();
+  MP.left = seconds; MP.leftAt = performance.now();
+  MP.roundEnds = now + seconds;
+  MP.sendT = 0;
+  updateHud();
+  Music.start();
+}
+
+function endRound(sc) {
+  if (!game || !game.mp || game.over) return;
+  game.over = true;
+  if (sc) MP.scores = sc;
+  Music.stop();
+  Sound.level(Sound.saw, 0);
+  setHint("");
+  updateHud();
+  showMpResult();
+}
+
+function showMpResult() {
+  const rows = MP.standings(false), mine = MP.scores[MP.pid] || 0;
+  const top = rows[0], tie = rows.length > 1 && rows[1].cuts === top.cuts;
+  $("resultTitle").textContent = tie ? "बराबरी! · A tie" : top.me ? "तपाईं जित्नुभयो! · You win!" : `${top.name} जित्यो!`;
+  $("resultScore").textContent = `${toNep(mine)} चैट`;
+  $("resultNote").textContent = `You cut ${mine} kite${mine === 1 ? "" : "s"} and came ${ordinal(1 + rows.filter(r => r.cuts > mine).length)} of ${rows.length}.`;
+  $("standings").replaceChildren(...rows.map((row, i) => {
+    const li = document.createElement("li");
+    const dot = document.createElement("i");
+    dot.className = "dot"; dot.style.background = STYLES[row.style].base;
+    const cuts = document.createElement("b");
+    cuts.textContent = `${toNep(row.cuts)} चैट`;
+    li.append(["🥇", "🥈", "🥉"][i] || "", dot, row.name + (row.me ? " (you)" : ""), cuts);
+    return li;
+  }));
+  $("standings").hidden = false;
+  $("newRecord").hidden = true;
+  $("againBtn").textContent = MP.host ? "फेरि खेलौं · Play again" : "Waiting for the host…";
+  $("againBtn").disabled = !MP.host;
+  $("leaveBtn").hidden = false;
+  $("resultScreen").hidden = false;
+}
+
+function leaveRoom() {
+  Net.close();
+  Object.assign(MP, { inRoom: false, seat: -1, hostSeat: -1, scores: {}, fightsView: [], reconnecting: false, retries: 0 });
+  MP.seats.clear(); MP.players.clear(); MP.remotes.clear();
+  game = null;
+  Music.stop();
+  Sound.level(Sound.saw, 0);
+  setHint("");
+  if (location.search) history.replaceState(null, "", location.pathname);   // drop ?room= so a reload doesn't rejoin
+  resize();
+  updateHud();
+}
+
+function showRoomScreen(code) {
+  for (const id of ["startScreen", "resultScreen"]) $(id).hidden = true;
+  $("roomScreen").hidden = false;
+  $("roomChoose").hidden = MP.inRoom;
+  $("roomWait").hidden = !MP.inRoom;
+  $("roomBack").textContent = MP.inRoom ? "कोठा छोड्नुस् · Leave room" : "← Back";
+  $("nameInput").value = MP.name || store.get("changa.name", "");
+  if (code) $("codeInput").value = code;
+  $("roomError").textContent = "";
+  MP.fail("");
+  MP.renderLobby();
+}
+
+function readName() {
+  MP.name = cleanName($("nameInput").value);
+  store.set("changa.name", MP.name);
+}
+
+$("friendsBtn").addEventListener("click", () => showRoomScreen());
+$("createBtn").addEventListener("click", () => {
+  Sound.init();                         // inside the tap, so the phone allows sound later
+  readName();
+  $("roomError").textContent = "";
+  $("createBtn").disabled = $("joinBtn").disabled = true;
+  $("createBtn").textContent = "Making a room…";
+  MP.tries = 0;
+  MP.connect(newCode(), "create");
+});
+function joinRoom() {
+  const code = $("codeInput").value.trim().toUpperCase();
+  if (!/^[A-Z]{4}$/.test(code)) { $("roomError").textContent = "Type the 4-letter room code."; return; }
+  Sound.init();
+  readName();
+  $("roomError").textContent = "";
+  $("createBtn").disabled = $("joinBtn").disabled = true;
+  $("joinBtn").textContent = "…";
+  MP.connect(code, "join");
+}
+$("joinBtn").addEventListener("click", joinRoom);
+$("codeInput").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ""); });
+$("codeInput").addEventListener("keydown", e => { if (e.key === "Enter") joinRoom(); });
+$("roundBtn").addEventListener("click", () => MP.playAgain());
+$("roomBack").addEventListener("click", () => {
+  if (MP.inRoom) leaveRoom(); else Net.close();
+  $("roomScreen").hidden = true;
+  $("startScreen").hidden = false;
+});
+$("leaveBtn").addEventListener("click", () => {
+  leaveRoom();
+  $("resultScreen").hidden = true;
+  $("startScreen").hidden = false;
+});
+$("inviteBtn").addEventListener("click", async () => {
+  const url = `${location.origin}${location.pathname}?room=${MP.code}`;
+  const text = `🪁 Fly kites with me! चङ्गा चैट, room ${MP.code}`;
+  try {
+    if (navigator.share) await navigator.share({ title: "Changa Chait", text, url });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      $("inviteBtn").textContent = "Link copied!";
+      setTimeout(() => ($("inviteBtn").textContent = "Share invite link"), 1500);
+    }
+  } catch (_) { /* share cancelled */ }
+});
+
 resize();
 document.fonts.ready.then(resize);
 updateHud();
 requestAnimationFrame(frame);
+
+// an invite link (?room=ABCD) opens the room screen with the code filled in
+const invited = (new URLSearchParams(location.search).get("room") || "").toUpperCase();
+if (/^[A-Z]{4}$/.test(invited)) showRoomScreen(invited);
 </script>
 <script src="../../visit-counter.js" defer></script>
 <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "ee9d14bc64cf451fbdf135e41f2cb638"}'></script><!-- End Cloudflare Web Analytics -->

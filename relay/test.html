@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex">
   <title>Relay Test</title>
   <meta name="theme-color" content="#ffd21a">
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;700;800&display=swap" rel="stylesheet">
   <style>
     /* Same signboard palette as the games. */
     :root {
@@ -15,7 +16,7 @@
     }
     * { box-sizing: border-box; margin: 0; }
     body { min-height: 100dvh; background: var(--wall); color: var(--ink);
-      font: 17px/1.5 system-ui, sans-serif; }
+      font: 17px/1.5 "Mukta", system-ui, sans-serif; }
     .sign { background: var(--sign); border-bottom: 8px solid var(--sign-red); text-align: center; padding: 22px 16px 16px; }
     .sign h1 { color: var(--sign-red); font-size: 2.2rem; line-height: 1.1; }
     .sign p { font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: .8rem; margin-top: 4px; }
@@ -59,7 +60,13 @@
       <p style="margin-top: 14px"><button class="plain" id="copy">Copy result</button> <span class="muted" id="copied"></span></p>
     </div>
 
-    <div class="card" id="error" hidden></div>
+    <div class="card" id="error" hidden>
+      <b class="bad">Could not connect to the game server.</b>
+      <table id="errorTable"></table>
+      <p class="muted" style="margin-top: 10px">Please copy this result and send it to the person who shared the test.
+        Then try once more on the other connection (Wi-Fi or mobile data).</p>
+      <p style="margin-top: 14px"><button class="plain" id="copyErr">Copy result</button> <span class="muted" id="copiedErr"></span></p>
+    </div>
   </main>
 
   <script>
@@ -78,16 +85,39 @@
     let lastResult = "";
 
     function join(room) {
+      // Records how far the live connection got, so a failure can be explained.
       return new Promise((resolve, reject) => {
+        const t0 = performance.now();
+        let opened = false;
+        const fail = why => {
+          clearTimeout(timer);
+          reject(new Error(`${why}, after ${Math.round(performance.now() - t0)} ms`));
+        };
         const ws = new WebSocket(`${RELAY}/room/${room}`);
-        const timer = setTimeout(() => { ws.close(); reject(new Error("timeout")); }, 10000);
-        ws.onerror = () => { clearTimeout(timer); reject(new Error("could not connect")); };
+        const timer = setTimeout(() => { ws.close(); fail("no answer"); }, 10000);
+        ws.onopen = () => { opened = true; };
+        ws.onclose = e => fail(opened ? `closed before the welcome (code ${e.code})` : `could not open (code ${e.code})`);
         ws.onmessage = e => {
           clearTimeout(timer);
-          ws.onerror = null;
+          ws.onclose = null;
           resolve({ ws, welcome: JSON.parse(e.data) });
         };
       });
+    }
+
+    // Can this phone load the server's address at all (a plain web request, not a live connection)?
+    async function checkAddress() {
+      const t0 = performance.now(), stop = new AbortController();
+      const timer = setTimeout(() => stop.abort(), 8000);
+      try {
+        await fetch(RELAY.replace("wss://", "https://").replace("ws://", "http://") + "/room/TEST",
+          { mode: "no-cors", cache: "no-store", signal: stop.signal });
+        return `loads (${Math.round(performance.now() - t0)} ms)`;
+      } catch (e) {
+        return `does NOT load (${e.name === "AbortError" ? "no answer in 8 s" : e.message})`;
+      } finally {
+        clearTimeout(timer);
+      }
     }
 
     async function run() {
@@ -104,11 +134,13 @@
         a = await join(room);
         b = await join(room);
       } catch (e) {
+        $("live").textContent = "Checking why…";
+        const address = await checkAddress();
+        const rows = [["Live connection", e.message], ["Server address", address], ["Page", location.origin]];
+        lastResult = "Changa Chait net test: FAILED\n" + rows.map(([k, v]) => `${k}: ${v}`).join("\n") + `\n${navigator.userAgent}`;
         $("progress").hidden = true;
         $("error").hidden = false;
-        $("error").innerHTML = `<b class="bad">Could not reach the game server.</b><br>
-          <span class="muted">Check your internet and try again. The free server also stops for the day after
-          heavy use. It restarts at 5:45 AM Nepal time.</span>`;
+        $("errorTable").innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
         $("go").disabled = false;
         return;
       }
@@ -180,14 +212,16 @@
     }
 
     $("go").onclick = run;
-    $("copy").onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(lastResult);
-        $("copied").textContent = "Copied. Paste it in a message.";
-      } catch {
-        $("copied").textContent = "Could not copy. Take a screenshot instead.";
-      }
-    };
+    for (const [button, note] of [["copy", "copied"], ["copyErr", "copiedErr"]]) {
+      $(button).onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(lastResult);
+          $(note).textContent = "Copied. Paste it in a message.";
+        } catch {
+          $(note).textContent = "Could not copy. Take a screenshot instead.";
+        }
+      };
+    }
   </script>
 </body>
 </html>
